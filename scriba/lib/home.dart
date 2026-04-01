@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'chat.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -43,10 +42,7 @@ class HomePage extends StatelessWidget {
           backgroundColor: const Color.fromARGB(255, 0, 43, 78), 
           foregroundColor: Colors.white,
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ChatTela()),
-          );
+
         }, 
         child: const Icon(Icons.add_comment_outlined),
       ),

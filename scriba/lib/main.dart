@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'login.dart'; 
-import 'cadastro.dart';
+
 
 void main() {
   runApp(const MaterialApp( // MaterialApp aqui no topo ajuda na navegação
@@ -34,10 +33,7 @@ class MainApp extends StatelessWidget {
                 foregroundColor: Colors.white, 
               ),
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginTela()),
-                );
+
               },
               child: const Text('Login'),
             ),
@@ -48,10 +44,7 @@ class MainApp extends StatelessWidget {
                 foregroundColor: Colors.white, 
               ),
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CadastroTela()),
-                );
+
               },
               child: const Text('Cadastrar-se'),
             ),

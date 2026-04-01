@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'home.dart';
+
 
 class LoginTela extends StatelessWidget {
   const LoginTela({super.key});
@@ -34,11 +34,7 @@ class LoginTela extends StatelessWidget {
                 foregroundColor: Colors.white, 
               ),              
               onPressed: () {
-                Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const HomePage()),
-                      (route) => false,
-                    );
+
                   },
               child: const Text('Entrar'),
             ),

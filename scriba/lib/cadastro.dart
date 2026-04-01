@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'home.dart';
+
 
 class CadastroTela extends StatelessWidget {
   const CadastroTela({super.key});
@@ -40,11 +40,7 @@ class CadastroTela extends StatelessWidget {
                 foregroundColor: Colors.white, 
               ),              
               onPressed: () {
-                Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const HomePage()),
-                      (route) => false,
-                    );
+
                   },
               child: const Text('Entrar'),
             ),
