@@ -7,9 +7,12 @@ class CadastroTela extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Cadastro")),
+      backgroundColor: const Color.fromARGB(255, 230, 222, 217),      
+      appBar: AppBar(title: const Text("Cadastro"),
+      backgroundColor: const Color.fromARGB(255, 230, 222, 217),),
       body: Center(
         child: ListView(
+          shrinkWrap: true, 
           padding: const EdgeInsets.symmetric(horizontal: 20),
           children: [
             TextField(  
@@ -32,6 +35,10 @@ class CadastroTela extends StatelessWidget {
             
 
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 0, 43, 78), 
+                foregroundColor: Colors.white, 
+              ),              
               onPressed: () {
                 Navigator.pushAndRemoveUntil(
                       context,

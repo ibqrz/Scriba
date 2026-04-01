@@ -7,17 +7,27 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Home")),
+      backgroundColor: const Color.fromARGB(255, 230, 222, 217),
+      appBar: AppBar(title: const Text("Home"),       
+      backgroundColor: const Color.fromARGB(255, 230, 222, 217),),
       body: Center(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20),          
           children: [
             SearchBar(
-              hintText: "Pesquisar..."
+              hintText: "Pesquisar...", 
+              constraints: BoxConstraints(
+                maxHeight: 60,
+                minHeight: 40,
+              ),
             ),
             const SizedBox(height: 20,),  
 
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 0, 43, 78), 
+              foregroundColor: Colors.white, 
+              ),  
               onPressed: () {
 
             }, 
@@ -30,6 +40,8 @@ class HomePage extends StatelessWidget {
       ),
       
       floatingActionButton: FloatingActionButton(
+          backgroundColor: const Color.fromARGB(255, 0, 43, 78), 
+          foregroundColor: Colors.white,
         onPressed: () {
           Navigator.push(
             context,

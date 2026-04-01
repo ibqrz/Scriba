@@ -7,9 +7,12 @@ class LoginTela extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Login")),
+      backgroundColor: const Color.fromARGB(255, 230, 222, 217),
+      appBar: AppBar(title: const Text("Login"),
+      backgroundColor: const Color.fromARGB(255, 230, 222, 217),),
       body: Center(
         child: ListView(
+          shrinkWrap: true, 
           padding: const EdgeInsets.symmetric(horizontal: 20),
           children: [
 
@@ -26,6 +29,10 @@ class LoginTela extends StatelessWidget {
             const SizedBox(height: 20,),
 
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 0, 43, 78), 
+                foregroundColor: Colors.white, 
+              ),              
               onPressed: () {
                 Navigator.pushAndRemoveUntil(
                       context,
