@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'chat.dart';
+
 
 
 class HomePage extends StatelessWidget {
@@ -12,9 +12,8 @@ class HomePage extends StatelessWidget {
       drawer: Drawer(
         child: Column(
           children: [
-            // 1. Cabeçalho do Menu (Parte Verde)
             Container(
-              height: 120, // Ajustei um pouco a altura para caber o texto com folga
+              height: 120, 
               width: double.infinity,
               padding: const EdgeInsets.only(left: 20, top: 40),
               decoration: const BoxDecoration(
@@ -44,10 +43,7 @@ class HomePage extends StatelessWidget {
               leading: const Icon(Icons.note_alt_outlined),
               title: const Text('Minhas Notas'),
               onTap: () {
-                Navigator.push(
-                  context, 
-                  MaterialPageRoute(builder: (context) => const HomePage())
-                );
+
               },
             ),
             const Divider(), 
@@ -56,10 +52,7 @@ class HomePage extends StatelessWidget {
               leading: const Icon(Icons.add_comment_outlined),
               title: const Text('Chat'),
               onTap: () {
-                Navigator.push(
-                  context, 
-                  MaterialPageRoute(builder: (context) => const ChatTela())
-                );
+
               },
             ),
             const Divider(),
@@ -82,7 +75,7 @@ class HomePage extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   onPressed: () {
-                    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+
                   },
                 ),
               ),
@@ -160,10 +153,7 @@ class HomePage extends StatelessWidget {
           backgroundColor: Color.fromARGB(255, 49, 168, 156), 
           foregroundColor: Colors.white,
         onPressed: () {
-          Navigator.push(
-            context, 
-            MaterialPageRoute(builder: (context) => const ChatTela())
-          );
+
         }, 
         child: const Icon(Icons.add_comment_outlined),
       ),

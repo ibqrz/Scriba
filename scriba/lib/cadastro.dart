@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:scriba/home.dart';
-
 
 class CadastroTela extends StatelessWidget {
   const CadastroTela({super.key});
@@ -20,7 +18,7 @@ class CadastroTela extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 icon: const Icon(Icons.arrow_circle_left_outlined, color: Colors.grey, size: 40),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {},
               ),
             ),
             const SizedBox(height: 20),
@@ -104,11 +102,7 @@ class CadastroTela extends StatelessWidget {
                       ),
                     ),              
                     onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context, 
-                        MaterialPageRoute(builder: (context) => const HomePage()),
-                        (route) => false,
-                      );
+
                     },
                     child: const Text('FAZER CADASTRO'),
                   ),                  
