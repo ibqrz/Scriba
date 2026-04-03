@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'home.dart';
 
 class CadastroTela extends StatelessWidget {
   const CadastroTela({super.key});
@@ -7,40 +6,109 @@ class CadastroTela extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Cadastro")),
-      body: Center(
+      body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          shrinkWrap: true, 
+          padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
           children: [
-            TextField(  
-              decoration: InputDecoration(labelText: 'Nome')
+
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(Icons.arrow_circle_left_outlined, color: Colors.grey, size: 40),
+                onPressed: () {},
+              ),
             ),
+            const SizedBox(height: 20),
+
+            const Text(
+              'Cadastro',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+
+            const Text(
+             'Digite seus dados para começar a criar novas ideias',
+             style: TextStyle(
+              fontSize: 14,
+             ), 
+            ),
+
+            const SizedBox(height: 80),
+
+            Center(
+              child: TextField(  
+                decoration: InputDecoration(
+                  labelText: 'Digite seu nome',
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                        width: 2.0,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
 
             const SizedBox(height: 20,),
 
-            TextField(  
-              decoration: InputDecoration(labelText: 'E-mail')
+            Center(
+              child: TextField(  
+                decoration: InputDecoration(
+                  labelText: 'Digite seu e-mail',
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                        width: 2.0,
+                    ),
+                  ),
+                ),
+              ),
             ),
 
-            const SizedBox(height: 20,),   
-
-            TextField(  
-              decoration: InputDecoration(labelText: 'Senha')              
+            const SizedBox(height: 20),   
+          
+            Center(
+              child: TextField(  
+                decoration: InputDecoration(
+                  labelText: 'Digite sua senha',
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                        width: 2.0,
+                    ),
+                  ),
+                ),
+              ),
             ),
 
-            const SizedBox(height: 20,),            
-            
+            const SizedBox(height: 20),  
 
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const HomePage()),
-                      (route) => false,
-                    );
-                  },
-              child: const Text('Entrar'),
-            ),
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(80, 60),
+                      backgroundColor: Color.fromARGB(255, 49, 168, 156), 
+                      foregroundColor: Colors.white, 
+                      side: const BorderSide(color: Color.fromARGB(255, 28, 125, 115), width: 1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),              
+                    onPressed: () {
+
+                    },
+                    child: const Text('FAZER CADASTRO'),
+                  ),                  
+                ],
+              ),            
+            ),          
           ],
         ),
       ),
