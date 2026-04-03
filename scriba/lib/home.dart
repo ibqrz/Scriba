@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:scriba/nota.dart';
 import 'chat.dart';
 
 
@@ -12,9 +13,8 @@ class HomePage extends StatelessWidget {
       drawer: Drawer(
         child: Column(
           children: [
-            // 1. Cabeçalho do Menu (Parte Verde)
             Container(
-              height: 120, // Ajustei um pouco a altura para caber o texto com folga
+              height: 120, 
               width: double.infinity,
               padding: const EdgeInsets.only(left: 20, top: 40),
               decoration: const BoxDecoration(
@@ -138,7 +138,9 @@ class HomePage extends StatelessWidget {
                 ),
               ),
               onPressed: () {
-
+                Navigator.push(context, 
+                MaterialPageRoute(builder: (context) => NotaTela())
+              );
             }, 
             child: const Text('NOVA NOTA')
             ),
