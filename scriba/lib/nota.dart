@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class NotaTela extends StatefulWidget {
-  const NotaTela({super.key, required this.textoNota});
+  const NotaTela({super.key, required this.textoNota, required this.tituloNota});
 
   final String textoNota;
+  final String tituloNota;
 
   @override
   State<NotaTela> createState() => _NotaTelaState();
@@ -22,7 +23,8 @@ class _NotaTelaState extends State<NotaTela> {
   @override
   void initState() {
     super.initState();
-    _tituloController = TextEditingController(text: "");
+    // Inicia com o valor que veio da HomePage
+    _tituloController = TextEditingController(text: widget.tituloNota);
     _conteudoController = TextEditingController(text: widget.textoNota);
     _conteudoFocusNode = FocusNode();
     _historicoUndo.add(widget.textoNota);
@@ -40,11 +42,19 @@ class _NotaTelaState extends State<NotaTela> {
     });
   }
 
-  // Isso força a barra a aparecer sempre que você entrar ou voltar para esta tela
+  // Garante que a barra de status seja reconfigurada ao focar na tela
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _configurarBarraSistema();
+  }
+
+  void _configurarBarraSistema() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ));
   }
 
   @override
@@ -53,6 +63,12 @@ class _NotaTelaState extends State<NotaTela> {
     _conteudoController.dispose();
     _conteudoFocusNode.dispose();
     super.dispose();
+  }
+
+  void _posicionarCursorNoFinal() {
+    _conteudoController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _conteudoController.text.length),
+    );
   }
 
   void _desfazer() {
@@ -81,16 +97,12 @@ class _NotaTelaState extends State<NotaTela> {
     }
   }
 
-  void _posicionarCursorNoFinal() {
-    _conteudoController.selection = TextSelection.fromPosition(
-      TextPosition(offset: _conteudoController.text.length),
-    );
-  }
-
   void _voltarESalvar() {
     String titulo = _tituloController.text.trim();
     String conteudo = _conteudoController.text.trim();
+    
     if (titulo.isEmpty) titulo = "Título da nota";
+    
     if (conteudo.isNotEmpty) {
       Navigator.pop(context, {'titulo': titulo, 'conteudo': conteudo});
     } else {
@@ -100,17 +112,18 @@ class _NotaTelaState extends State<NotaTela> {
 
   @override
   Widget build(BuildContext context) {
-    // Usamos o AnnotatedRegion para forçar o estilo da barra de status no nível do widget
+    // Forçamos a configuração da barra em cada build para evitar que o sistema a resete
+    _configurarBarraSistema();
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark, // Ícones pretos
-        statusBarBrightness: Brightness.light, // iOS
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
-          // O SafeArea é essencial para não sobrepor a barra de notificações
           child: Column(
             children: [
               Padding(
@@ -184,17 +197,22 @@ class _NotaTelaState extends State<NotaTela> {
                       IconButton(
                         icon: const Icon(Icons.keyboard, color: Colors.white),
                         onPressed: () {
-                          _conteudoFocusNode.requestFocus();
+                          // Garante que o foco vá para o conteúdo e abra o teclado
+                          FocusScope.of(context).requestFocus(_conteudoFocusNode);
                           SystemChannels.textInput.invokeMethod('TextInput.show');
                         },
                       ),
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.white),
-                        onPressed: () {}),
+                        onPressed: () {
+                          FocusScope.of(context).requestFocus(_conteudoFocusNode);
+                        }),
                       IconButton(
                         icon: const Icon(Icons.cleaning_services_rounded, color: Colors.white),
                         onPressed: () {
-                          _conteudoController.clear();
+                          setState(() {
+                             _conteudoController.clear();
+                          });
                         }),
                       const Spacer(),
                       IconButton(

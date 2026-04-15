@@ -11,18 +11,18 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Map<String, String>> notas = [];
-  String textoBusca = ""; // Variável para controlar a pesquisa
+  String textoBusca = ""; 
 
   void _excluirNota(int index, List<Map<String, String>> listaAtual) {
-    // Precisamos encontrar a nota original na lista 'notas' para excluir corretamente
     setState(() {
+      // Remove da lista principal usando a referência do objeto da lista filtrada
       notas.remove(listaAtual[index]);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // 1. Lógica de Filtragem
+    // 1. Lógica de Filtragem por Título
     List<Map<String, String>> notasFiltradas = notas.where((nota) {
       final titulo = (nota['titulo'] ?? "").toLowerCase();
       return titulo.contains(textoBusca.toLowerCase());
@@ -97,7 +97,6 @@ class _HomePageState extends State<HomePage> {
         children: [
           const SizedBox(height: 30),
           
-          // BARRA DE PESQUISA ATUALIZADA
           SearchBar(
             hintText: "Procurar nota...",
             onChanged: (valor) {
@@ -127,12 +126,17 @@ class _HomePageState extends State<HomePage> {
             onPressed: () async {
               final resultado = await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const NotaTela(textoNota: "")),
+                MaterialPageRoute(
+                  builder: (context) => const NotaTela(
+                    textoNota: "", 
+                    tituloNota: "" // Nova nota inicia vazia
+                  )
+                ),
               );
 
               if (resultado != null && resultado is Map<String, String>) {
                 setState(() {
-                  // Insere no início (índice 0) para ordem de edição/criação
+                  // Ordem de última edição: insere no topo
                   notas.insert(0, resultado);
                 });
               }
@@ -141,10 +145,10 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 20),
 
-          // MENSAGEM DE ERRO NA BUSCA
+          // MENSAGEM DE AVISO DA BUSCA
           if (pesquisaSemResultado)
             const Padding(
-              padding: EdgeInsets.only(bottom: 10),
+              padding: EdgeInsets.only(bottom: 15),
               child: Text(
                 "Nenhuma nota encontrada. Exibindo todas:",
                 style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
@@ -180,17 +184,21 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () => _excluirNota(idx, listaParaExibir),
                   ),
                   onTap: () async {
+                    // ENVIANDO O TÍTULO E CONTEÚDO PARA EDIÇÃO
                     final notaEditada = await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => NotaTela(textoNota: nota['conteudo'] ?? ""),
+                        builder: (context) => NotaTela(
+                          textoNota: nota['conteudo'] ?? "",
+                          tituloNota: nota['titulo'] ?? "", 
+                        ),
                       ),
                     );
 
                     if (notaEditada != null && notaEditada is Map<String, String>) {
                       setState(() {
-                        // Remove a versão antiga e coloca a nova no topo (última edição)
-                        notas.remove(nota);
+                        // Lógica de "Última Edição": remove de onde estava e move para o topo
+                        notas.remove(nota); 
                         notas.insert(0, notaEditada);
                       });
                     }
