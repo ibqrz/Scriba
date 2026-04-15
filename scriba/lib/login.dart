@@ -9,6 +9,7 @@ class LoginTela extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        top: true,
         child: ListView(
           shrinkWrap: true, 
           padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
