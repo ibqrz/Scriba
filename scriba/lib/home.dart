@@ -59,12 +59,6 @@ class _HomePageState extends State<HomePage> {
               leading: const Icon(Icons.note_alt_outlined),
               title: const Text('Minhas Notas'),
               onTap: () => Navigator.pop(context),
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.add_comment_outlined),
-              title: const Text('Chat'),
-              onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatTela(
                   textoNota: "", 
                   tituloNota: "Chat Geral",
