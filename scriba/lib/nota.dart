@@ -40,6 +40,15 @@ class _NotaTelaState extends State<NotaTela> {
         }
       }
     });
+
+    String tituloInicial = widget.tituloNota;
+    if (tituloInicial == "Título da nota" || tituloInicial.isEmpty) {
+      tituloInicial = "";
+    }
+  
+    _tituloController = TextEditingController(text: tituloInicial);
+    _conteudoController = TextEditingController(text: widget.textoNota);
+    _conteudoFocusNode = FocusNode();
   }
 
   @override
