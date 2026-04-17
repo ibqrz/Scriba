@@ -128,9 +128,12 @@ class _HomePageState extends State<HomePage> {
                 ),
               );
 
-              if (resultado != null && resultado is Map<String, String>) {
+              if (resultado != null && resultado is Map<String, dynamic>) {
                 setState(() {
-                  notas.insert(0, resultado);
+                  notas.insert(0, {
+                    'titulo': resultado['titulo']?.toString() ?? "",
+                    'conteudo': resultado['conteudo']?.toString() ?? "",
+                  });
                 });
               }
             },
@@ -176,7 +179,7 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () => _excluirNota(nota),
                   ),
                   onTap: () async {
-                    final notaEditada = await Navigator.push(
+                    final resultadoRetornado = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => NotaTela(
@@ -186,10 +189,17 @@ class _HomePageState extends State<HomePage> {
                       ),
                     );
 
-                    if (notaEditada != null && notaEditada is Map<String, String>) {
+                    if (resultadoRetornado != null && resultadoRetornado is Map<String, dynamic>) {
                       setState(() {
-                        notas.remove(nota); 
-                        notas.insert(0, notaEditada);
+                        if (resultadoRetornado['excluir'] == true) {
+                          notas.remove(nota);
+                        } else {
+                          notas.remove(nota); 
+                          notas.insert(0, {
+                            'titulo': resultadoRetornado['titulo']?.toString() ?? "",
+                            'conteudo': resultadoRetornado['conteudo']?.toString() ?? "",
+                          });
+                        }
                       });
                     }
                   },
