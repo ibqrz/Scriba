@@ -13,22 +13,19 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, String>> notas = [];
   String textoBusca = ""; 
 
-  void _excluirNota(int index, List<Map<String, String>> listaAtual) {
+  void _excluirNota(Map<String, String> notaParaExcluir) {
     setState(() {
-      // Remove da lista principal usando a referência do objeto da lista filtrada
-      notas.remove(listaAtual[index]);
+      notas.remove(notaParaExcluir);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // 1. Lógica de Filtragem por Título
     List<Map<String, String>> notasFiltradas = notas.where((nota) {
       final titulo = (nota['titulo'] ?? "").toLowerCase();
       return titulo.contains(textoBusca.toLowerCase());
     }).toList();
 
-    // 2. Lógica de exibição: se pesquisou e não achou, mostra aviso + todas as notas
     bool pesquisaSemResultado = textoBusca.isNotEmpty && notasFiltradas.isEmpty;
     List<Map<String, String>> listaParaExibir = pesquisaSemResultado ? notas : notasFiltradas;
 
@@ -68,7 +65,10 @@ class _HomePageState extends State<HomePage> {
               leading: const Icon(Icons.add_comment_outlined),
               title: const Text('Chat'),
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatTela()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatTela(
+                  textoNota: "", 
+                  tituloNota: "Chat Geral",
+                )));
               },
             ),
             const Spacer(),
@@ -129,14 +129,13 @@ class _HomePageState extends State<HomePage> {
                 MaterialPageRoute(
                   builder: (context) => const NotaTela(
                     textoNota: "", 
-                    tituloNota: "" // Nova nota inicia vazia
+                    tituloNota: "" 
                   )
                 ),
               );
 
               if (resultado != null && resultado is Map<String, String>) {
                 setState(() {
-                  // Ordem de última edição: insere no topo
                   notas.insert(0, resultado);
                 });
               }
@@ -145,7 +144,6 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 20),
 
-          // MENSAGEM DE AVISO DA BUSCA
           if (pesquisaSemResultado)
             const Padding(
               padding: EdgeInsets.only(bottom: 15),
@@ -156,19 +154,19 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-          // LISTAGEM DE NOTAS
           if (notas.isEmpty)
             Column(
               children: [
                 const SizedBox(height: 50),
-                Image.asset('assets/home.png', width: 300),
+                Image.asset('assets/home.png', 
+                  width: 300, 
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.notes, size: 100, color: Colors.grey)
+                ),
                 const Text("Nenhuma nota por aqui...", style: TextStyle(color: Colors.grey)),
               ],
             )
           else
-            ...listaParaExibir.asMap().entries.map((entry) {
-              int idx = entry.key;
-              Map<String, String> nota = entry.value;
+            ...listaParaExibir.map((nota) {
               return Card(
                 elevation: 3,
                 margin: const EdgeInsets.only(bottom: 15),
@@ -181,10 +179,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Colors.redAccent),
-                    onPressed: () => _excluirNota(idx, listaParaExibir),
+                    onPressed: () => _excluirNota(nota),
                   ),
                   onTap: () async {
-                    // ENVIANDO O TÍTULO E CONTEÚDO PARA EDIÇÃO
                     final notaEditada = await Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -197,7 +194,6 @@ class _HomePageState extends State<HomePage> {
 
                     if (notaEditada != null && notaEditada is Map<String, String>) {
                       setState(() {
-                        // Lógica de "Última Edição": remove de onde estava e move para o topo
                         notas.remove(nota); 
                         notas.insert(0, notaEditada);
                       });
@@ -212,7 +208,10 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: const Color.fromARGB(255, 49, 168, 156),
         foregroundColor: Colors.white,
         onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatTela()));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatTela(
+            textoNota: "", 
+            tituloNota: "Assistente Scriba",
+          )));
         },
         child: const Icon(Icons.add_comment_outlined),
       ),

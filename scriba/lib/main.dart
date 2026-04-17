@@ -18,8 +18,8 @@ class MainApp extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark, // Ícones escuros
-        statusBarBrightness: Brightness.light, // Para iOS
+        statusBarIconBrightness: Brightness.dark, 
+        statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
         body: SafeArea(
