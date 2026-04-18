@@ -12,11 +12,41 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<Map<String, String>> notas = [];
   String textoBusca = ""; 
+  final FocusNode _focoBusca = FocusNode();
+
+  void _irParaTela(Widget tela) async {
+    _focoBusca.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    final resultado = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => tela),
+    );
+
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    if (resultado != null && resultado is Map<String, dynamic>) {
+      setState(() {
+        if (resultado['excluir'] != true) {
+          notas.insert(0, {
+            'titulo': resultado['titulo']?.toString() ?? "",
+            'conteudo': resultado['conteudo']?.toString() ?? "",
+          });
+        }
+      });
+    }
+  }
 
   void _excluirNota(Map<String, String> notaParaExcluir) {
     setState(() {
       notas.remove(notaParaExcluir);
     });
+  }
+
+  @override
+  void dispose() {
+    _focoBusca.dispose();
+    super.dispose();
   }
 
   @override
@@ -30,6 +60,7 @@ class _HomePageState extends State<HomePage> {
     List<Map<String, String>> listaParaExibir = pesquisaSemResultado ? notas : notasFiltradas;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       drawer: Drawer(
         child: Column(
           children: [
@@ -58,11 +89,17 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: const Icon(Icons.note_alt_outlined),
               title: const Text('Minhas Notas'),
-              onTap: () => Navigator.pop(context),
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatTela(
-                  textoNota: "", 
-                  tituloNota: "Chat Geral",
-                )));
+              onTap: () {
+                FocusManager.instance.primaryFocus?.unfocus();
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.add_comment_outlined),
+              title: const Text('Chat'),
+              onTap: () {
+                _irParaTela(const ChatTela(textoNota: "", tituloNota: "Chat Geral"));
               },
             ),
             const Spacer(),
@@ -74,7 +111,10 @@ class _HomePageState extends State<HomePage> {
                   style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
                   icon: const Icon(Icons.logout),
                   label: const Text("SAIR", style: TextStyle(fontWeight: FontWeight.bold)),
-                  onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false),
+                  onPressed: () {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                  },
                 ),
               ),
             ),
@@ -86,137 +126,116 @@ class _HomePageState extends State<HomePage> {
         foregroundColor: Colors.white,
         title: const Text("Home", style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        children: [
-          const SizedBox(height: 30),
-          
-          SearchBar(
-            hintText: "Procurar nota...",
-            onChanged: (valor) {
-              setState(() {
-                textoBusca = valor;
-              });
-            },
-            leading: const Icon(Icons.search, color: Colors.black),
-            backgroundColor: WidgetStateProperty.all(Colors.white),
-            shape: WidgetStateProperty.all(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-                side: const BorderSide(color: Colors.black, width: 1.5),
-              ),
-            ),
-            constraints: const BoxConstraints(maxHeight: 60, minHeight: 40),
-          ),
-          const SizedBox(height: 20),
-
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(80, 60),
-              backgroundColor: const Color.fromARGB(255, 4, 51, 46),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () async {
-              final resultado = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotaTela(
-                    textoNota: "", 
-                    tituloNota: "" 
-                  )
-                ),
-              );
-
-              if (resultado != null && resultado is Map<String, dynamic>) {
+      body: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          children: [
+            const SizedBox(height: 30),
+            SearchBar(
+              focusNode: _focoBusca,
+              hintText: "Procurar nota...",
+              onChanged: (valor) {
                 setState(() {
-                  notas.insert(0, {
-                    'titulo': resultado['titulo']?.toString() ?? "",
-                    'conteudo': resultado['conteudo']?.toString() ?? "",
-                  });
+                  textoBusca = valor;
                 });
-              }
-            },
-            child: const Text('NOVA NOTA'),
-          ),
-          const SizedBox(height: 20),
-
-          if (pesquisaSemResultado)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 15),
-              child: Text(
-                "Nenhuma nota encontrada. Exibindo todas:",
-                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
+              },
+              leading: const Icon(Icons.search, color: Colors.black),
+              backgroundColor: WidgetStateProperty.all(Colors.white),
+              shape: WidgetStateProperty.all(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: const BorderSide(color: Colors.black, width: 1.5),
+                ),
               ),
+              constraints: const BoxConstraints(maxHeight: 60, minHeight: 40),
             ),
-
-          if (notas.isEmpty)
-            Column(
-              children: [
-                const SizedBox(height: 50),
-                Image.asset('assets/home.png', 
-                  width: 300, 
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.notes, size: 100, color: Colors.grey)
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(80, 60),
+                backgroundColor: const Color.fromARGB(255, 4, 51, 46),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () => _irParaTela(const NotaTela(textoNota: "", tituloNota: "")),
+              child: const Text('NOVA NOTA'),
+            ),
+            const SizedBox(height: 20),
+            if (pesquisaSemResultado)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 15),
+                child: Text(
+                  "Nenhuma nota encontrada. Exibindo todas:",
+                  style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
                 ),
-                const Text("Nenhuma nota por aqui...", style: TextStyle(color: Colors.grey)),
-              ],
-            )
-          else
-            ...listaParaExibir.map((nota) {
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.only(bottom: 15),
-                child: ListTile(
-                  title: Text(nota['titulo'] ?? "Título da nota"),
-                  subtitle: Text(
-                    nota['conteudo'] ?? "",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+              ),
+            if (notas.isEmpty)
+              Column(
+                children: [
+                  const SizedBox(height: 50),
+                  Image.asset('assets/home.png', 
+                    width: 300, 
+                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.notes, size: 100, color: Colors.grey)
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.redAccent),
-                    onPressed: () => _excluirNota(nota),
-                  ),
-                  onTap: () async {
-                    final resultadoRetornado = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => NotaTela(
-                          textoNota: nota['conteudo'] ?? "",
-                          tituloNota: nota['titulo'] ?? "", 
+                  const Text("Nenhuma nota por aqui...", style: TextStyle(color: Colors.grey)),
+                ],
+              )
+            else
+              ...listaParaExibir.map((nota) {
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.only(bottom: 15),
+                  child: ListTile(
+                    title: Text(nota['titulo'] == "" ? "Título da nota" : (nota['titulo'] ?? "Título da nota")),
+                    subtitle: Text(
+                      nota['conteudo'] ?? "",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.redAccent),
+                      onPressed: () => _excluirNota(nota),
+                    ),
+                    onTap: () async {
+                      _focoBusca.unfocus();
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      
+                      final resultadoRetornado = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NotaTela(
+                            textoNota: nota['conteudo'] ?? "",
+                            tituloNota: nota['titulo'] ?? "", 
+                          ),
                         ),
-                      ),
-                    );
+                      );
 
-                    if (resultadoRetornado != null && resultadoRetornado is Map<String, dynamic>) {
-                      setState(() {
-                        if (resultadoRetornado['excluir'] == true) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+
+                      if (resultadoRetornado != null && resultadoRetornado is Map<String, dynamic>) {
+                        setState(() {
                           notas.remove(nota);
-                        } else {
-                          notas.remove(nota); 
-                          notas.insert(0, {
-                            'titulo': resultadoRetornado['titulo']?.toString() ?? "",
-                            'conteudo': resultadoRetornado['conteudo']?.toString() ?? "",
-                          });
-                        }
-                      });
-                    }
-                  },
-                ),
-              );
-            }).toList(),
-        ],
+                          if (resultadoRetornado['excluir'] != true) {
+                            notas.insert(0, {
+                              'titulo': resultadoRetornado['titulo']?.toString() ?? "",
+                              'conteudo': resultadoRetornado['conteudo']?.toString() ?? "",
+                            });
+                          }
+                        });
+                      }
+                    },
+                  ),
+                );
+              }).toList(),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color.fromARGB(255, 49, 168, 156),
         foregroundColor: Colors.white,
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatTela(
-            textoNota: "", 
-            tituloNota: "Assistente Scriba",
-          )));
-        },
+        onPressed: () => _irParaTela(const ChatTela(textoNota: "", tituloNota: "Assistente Scriba")),
         child: const Icon(Icons.add_comment_outlined),
       ),
     );
