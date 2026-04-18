@@ -4,6 +4,15 @@ import 'login.dart';
 import 'cadastro.dart';
 
 void main() {
+
+  WidgetsFlutterBinding.ensureInitialized();
+    
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual, 
+      overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]
+    );
+
+
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false, // remove a faixa de debug
     home: MainApp(),
@@ -21,10 +30,13 @@ class MainApp extends StatelessWidget {
         statusBarIconBrightness: Brightness.dark, 
         statusBarBrightness: Brightness.light,
       ),
+
+// -------------------------------------------------------------------
+
       child: Scaffold(
         body: SafeArea(
           top: true,
-          
+          bottom: false,
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
