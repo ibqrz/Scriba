@@ -46,6 +46,10 @@ class _ChatTelaState extends State<ChatTela> {
     _controller.clear();
   }
 
+
+  // -------------------------------------------------------------------
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,6 +95,9 @@ class _ChatTelaState extends State<ChatTela> {
       ),
     );
   }
+
+  // -------------------------------------------------------------------
+
 
   Widget buildUserBubble(String text) {
     return Align(
