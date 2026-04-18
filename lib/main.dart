@@ -14,7 +14,7 @@ void main() {
 
 
   runApp(const MaterialApp(
-    debugShowCheckedModeBanner: false, // remove a faixa de debug
+    debugShowCheckedModeBanner: false,
     home: MainApp(),
   ));
 }
@@ -30,8 +30,6 @@ class MainApp extends StatelessWidget {
         statusBarIconBrightness: Brightness.dark, 
         statusBarBrightness: Brightness.light,
       ),
-
-// -------------------------------------------------------------------
 
       child: Scaffold(
         body: SafeArea(

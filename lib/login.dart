@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'home.dart';
+import 'database_helper.dart';
 
 
 class LoginTela extends StatefulWidget {
@@ -9,8 +11,72 @@ class LoginTela extends StatefulWidget {
 }
 
 class _LoginTelaState extends State<LoginTela> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _senhaController = TextEditingController();
 
   bool _senhaEscondida = true;
+  bool _carregando = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _senhaController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fazerLogin() async {
+    final email = _emailController.text.trim();
+    final senha = _senhaController.text.trim();
+
+    if (email.isEmpty || senha.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe e-mail e senha.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _carregando = true;
+    });
+
+    try {
+      final usuario = await DatabaseHelper.instance.autenticarUsuario(
+        email: email,
+        senha: senha,
+      );
+
+      if (!mounted) return;
+
+      if (usuario == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Credenciais invalidas.')),
+        );
+        return;
+      }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(
+            idUsuario: usuario['id_usuario'] as int,
+            nomeUsuario: usuario['nome']?.toString(),
+          ),
+        ),
+        (route) => false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Falha ao fazer login.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _carregando = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +110,7 @@ class _LoginTelaState extends State<LoginTela> {
             const SizedBox(height: 200),
             Center(
               child: TextField(
+                controller: _emailController,
                 decoration: InputDecoration(
                   labelText: 'Digite seu e-mail',
                   enabledBorder: OutlineInputBorder(
@@ -57,6 +124,7 @@ class _LoginTelaState extends State<LoginTela> {
             
             Center(
               child: TextField(
+                controller: _senhaController,
                 obscureText: _senhaEscondida, 
                 decoration: InputDecoration(
                   labelText: 'Digite sua senha',
@@ -98,15 +166,8 @@ class _LoginTelaState extends State<LoginTela> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const HomePage()),
-                        (route) => false,
-                      );
-                    },
-                    child: const Text('FAZER LOGIN'),
+                    onPressed: _carregando ? null : _fazerLogin,
+                    child: Text(_carregando ? 'ENTRANDO...' : 'FAZER LOGIN'),
                   ),
                 ],
               ),

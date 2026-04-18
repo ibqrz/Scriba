@@ -1,18 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:scriba/nota.dart'; 
 import 'chat.dart';
+import 'database_helper.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({
+    super.key,
+    required this.idUsuario,
+    this.nomeUsuario,
+  });
+
+  final int idUsuario;
+  final String? nomeUsuario;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Map<String, String>> notas = [];
+  List<Map<String, dynamic>> notas = [];
   String textoBusca = ""; 
   final FocusNode _focoBusca = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarNotas();
+  }
+
+  Future<void> _carregarNotas() async {
+    final notasDoBanco = await DatabaseHelper.instance.getNotas(widget.idUsuario);
+    if (!mounted) return;
+    setState(() {
+      notas = notasDoBanco;
+    });
+  }
 
   void _irParaTela(Widget tela) async {
     _focoBusca.unfocus();
@@ -25,22 +47,17 @@ class _HomePageState extends State<HomePage> {
 
     FocusManager.instance.primaryFocus?.unfocus();
 
-    if (resultado != null && resultado is Map<String, dynamic>) {
-      setState(() {
-        if (resultado['excluir'] != true) {
-          notas.insert(0, {
-            'titulo': resultado['titulo']?.toString() ?? "",
-            'conteudo': resultado['conteudo']?.toString() ?? "",
-          });
-        }
-      });
+    if (resultado == true) {
+      await _carregarNotas();
     }
   }
 
-  void _excluirNota(Map<String, String> notaParaExcluir) {
-    setState(() {
-      notas.remove(notaParaExcluir);
-    });
+  Future<void> _excluirNota(int idNota) async {
+    await DatabaseHelper.instance.excluirNota(
+      idNota: idNota,
+      idUsuario: widget.idUsuario,
+    );
+    await _carregarNotas();
   }
 
   @override
@@ -51,13 +68,13 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    List<Map<String, String>> notasFiltradas = notas.where((nota) {
+    List<Map<String, dynamic>> notasFiltradas = notas.where((nota) {
       final titulo = (nota['titulo'] ?? "").toLowerCase();
       return titulo.contains(textoBusca.toLowerCase());
     }).toList();
 
     bool pesquisaSemResultado = textoBusca.isNotEmpty && notasFiltradas.isEmpty;
-    List<Map<String, String>> listaParaExibir = pesquisaSemResultado ? notas : notasFiltradas;
+    List<Map<String, dynamic>> listaParaExibir = pesquisaSemResultado ? notas : notasFiltradas;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -124,7 +141,12 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 49, 168, 156),
         foregroundColor: Colors.white,
-        title: const Text("Home", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          widget.nomeUsuario == null || widget.nomeUsuario!.trim().isEmpty
+              ? "Home"
+              : "Home - ${widget.nomeUsuario}",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: GestureDetector(
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -158,7 +180,7 @@ class _HomePageState extends State<HomePage> {
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              onPressed: () => _irParaTela(const NotaTela(textoNota: "", tituloNota: "")),
+              onPressed: () => _irParaTela(NotaTela(textoNota: "", tituloNota: "", notaId: null, idUsuario: widget.idUsuario)),
               child: const Text('NOVA NOTA'),
             ),
             const SizedBox(height: 20),
@@ -196,39 +218,21 @@ class _HomePageState extends State<HomePage> {
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete, color: Colors.redAccent),
-                      onPressed: () => _excluirNota(nota),
+                      onPressed: () => _excluirNota(nota['id_nota'] as int),
                     ),
                     onTap: () async {
-                      _focoBusca.unfocus();
-                      FocusManager.instance.primaryFocus?.unfocus();
-                      
-                      final resultadoRetornado = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => NotaTela(
-                            textoNota: nota['conteudo'] ?? "",
-                            tituloNota: nota['titulo'] ?? "", 
-                          ),
+                      _irParaTela(
+                        NotaTela(
+                          textoNota: nota['conteudo']?.toString() ?? "",
+                          tituloNota: nota['titulo']?.toString() ?? "",
+                          notaId: nota['id_nota'] as int,
+                          idUsuario: widget.idUsuario,
                         ),
                       );
-
-                      FocusManager.instance.primaryFocus?.unfocus();
-
-                      if (resultadoRetornado != null && resultadoRetornado is Map<String, dynamic>) {
-                        setState(() {
-                          notas.remove(nota);
-                          if (resultadoRetornado['excluir'] != true) {
-                            notas.insert(0, {
-                              'titulo': resultadoRetornado['titulo']?.toString() ?? "",
-                              'conteudo': resultadoRetornado['conteudo']?.toString() ?? "",
-                            });
-                          }
-                        });
-                      }
                     },
                   ),
                 );
-              }).toList(),
+              }),
           ],
         ),
       ),

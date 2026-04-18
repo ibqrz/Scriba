@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'chat.dart';
+import 'database_helper.dart';
 
 class NotaTela extends StatefulWidget {
-  const NotaTela({super.key, required this.textoNota, required this.tituloNota});
+  const NotaTela({
+    super.key,
+    required this.textoNota,
+    required this.tituloNota,
+    required this.idUsuario,
+    this.notaId,
+  });
 
   final String textoNota;
   final String tituloNota;
+  final int idUsuario;
+  final int? notaId;
 
   @override
   State<NotaTela> createState() => _NotaTelaState();
@@ -17,8 +26,8 @@ class _NotaTelaState extends State<NotaTela> {
   late TextEditingController _conteudoController;
   late FocusNode _conteudoFocusNode;
 
-  List<String> _historicoUndo = [];
-  List<String> _historicoRedo = [];
+  final List<String> _historicoUndo = [];
+  final List<String> _historicoRedo = [];
   bool _bloquearListener = false;
 
   @override
@@ -58,16 +67,34 @@ class _NotaTelaState extends State<NotaTela> {
     super.dispose();
   }
 
-  void _voltarESalvar() {
+  Future<void> _voltarESalvar() async {
     String titulo = _tituloController.text.trim();
     String conteudo = _conteudoController.text.trim();
-    if (titulo.isEmpty && conteudo.isNotEmpty) titulo = "Título da nota";
-    
-    if (conteudo.isNotEmpty || titulo.isNotEmpty) {
-      Navigator.pop(context, {'titulo': titulo, 'conteudo': conteudo});
-    } else {
-      Navigator.pop(context);
+
+    if (titulo.isEmpty && conteudo.isEmpty) {
+      Navigator.pop(context, false);
+      return;
     }
+
+    if (titulo.isEmpty && conteudo.isNotEmpty) titulo = "Título da nota";
+
+    if (widget.notaId == null) {
+      await DatabaseHelper.instance.inserirNota(
+        titulo: titulo,
+        conteudo: conteudo,
+        idUsuario: widget.idUsuario,
+      );
+    } else {
+      await DatabaseHelper.instance.atualizarNota(
+        idNota: widget.notaId!,
+        idUsuario: widget.idUsuario,
+        titulo: titulo,
+        conteudo: conteudo,
+      );
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context, true);
   }
 
   void _desfazer() {
@@ -103,6 +130,8 @@ class _NotaTelaState extends State<NotaTela> {
   }
 
   void _confirmarExclusao() {
+    final rootNavigator = Navigator.of(context);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -111,9 +140,18 @@ class _NotaTelaState extends State<NotaTela> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              Navigator.pop(context, {'excluir': true});
+
+              if (widget.notaId != null) {
+                await DatabaseHelper.instance.excluirNota(
+                  idNota: widget.notaId!,
+                  idUsuario: widget.idUsuario,
+                );
+              }
+
+              if (!mounted) return;
+              rootNavigator.pop(true);
             },
             child: const Text("Excluir", style: TextStyle(color: Colors.red)),
           ),
@@ -144,17 +182,13 @@ class _NotaTelaState extends State<NotaTela> {
     );
   }
 
-// -------------------------------------------------------------------
-
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent, //barra transparente
-        statusBarIconBrightness: Brightness.dark, // icones pretos 
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.light,    
-        //systemNavigationBarColor: Colors.white,   // barra de botões inferior
-        //systemNavigationBarIconBrightness: Brightness.dark,
       ),
 
 

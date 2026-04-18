@@ -46,16 +46,12 @@ class _ChatTelaState extends State<ChatTela> {
     _controller.clear();
   }
 
-
-  // -------------------------------------------------------------------
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF31A89C),
-        iconTheme: const IconThemeData(color: Colors.white), // Garante seta branca
+        iconTheme: const IconThemeData(color: Colors.white),
         title: const Text("Chat IA", style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
@@ -95,10 +91,6 @@ class _ChatTelaState extends State<ChatTela> {
       ),
     );
   }
-
-  // -------------------------------------------------------------------
-
-
   Widget buildUserBubble(String text) {
     return Align(
       alignment: Alignment.centerRight,

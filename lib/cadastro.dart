@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:scriba/home.dart';
+import 'database_helper.dart';
 
 class CadastroTela extends StatefulWidget {
   const CadastroTela({super.key});
@@ -9,10 +10,76 @@ class CadastroTela extends StatefulWidget {
 }
 
 class _CadastroTelaState extends State<CadastroTela> {
+  final TextEditingController _nomeController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _senhaController = TextEditingController();
 
   bool _senhaEscondida = true;
+  bool _carregando = false;
 
-// -------------------------------------------------------------------
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _emailController.dispose();
+    _senhaController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fazerCadastro() async {
+    final nome = _nomeController.text.trim();
+    final email = _emailController.text.trim();
+    final senha = _senhaController.text.trim();
+
+    if (nome.isEmpty || email.isEmpty || senha.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha nome, e-mail e senha.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _carregando = true;
+    });
+
+    try {
+      final usuario = await DatabaseHelper.instance.cadastrarUsuario(
+        nome: nome,
+        email: email,
+        senha: senha,
+      );
+
+      if (!mounted) return;
+
+      if (usuario == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('E-mail ja cadastrado. Tente outro.')),
+        );
+        return;
+      }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(
+            idUsuario: usuario['id_usuario'] as int,
+            nomeUsuario: usuario['nome']?.toString(),
+          ),
+        ),
+        (route) => false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Falha ao cadastrar. Tente novamente.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _carregando = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +115,7 @@ class _CadastroTelaState extends State<CadastroTela> {
             const SizedBox(height: 80),
             Center(
               child: TextField(
+                controller: _nomeController,
                 decoration: InputDecoration(
                   labelText: 'Digite seu nome',
                   enabledBorder: OutlineInputBorder(
@@ -62,6 +130,7 @@ class _CadastroTelaState extends State<CadastroTela> {
             const SizedBox(height: 20),
             Center(
               child: TextField(
+                controller: _emailController,
                 decoration: InputDecoration(
                   labelText: 'Digite seu e-mail',
                   enabledBorder: OutlineInputBorder(
@@ -78,6 +147,7 @@ class _CadastroTelaState extends State<CadastroTela> {
 
             Center(
               child: TextField(
+                controller: _senhaController,
                 obscureText: _senhaEscondida, 
                 decoration: InputDecoration(
                   labelText: 'Digite sua senha',
@@ -120,15 +190,8 @@ class _CadastroTelaState extends State<CadastroTela> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const HomePage()),
-                        (route) => false,
-                      );
-                    },
-                    child: const Text('FAZER CADASTRO'),
+                    onPressed: _carregando ? null : _fazerCadastro,
+                    child: Text(_carregando ? 'CADASTRANDO...' : 'FAZER CADASTRO'),
                   ),
                 ],
               ),
