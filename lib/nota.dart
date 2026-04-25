@@ -1,4 +1,4 @@
-import 'dart:async'; 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'chat.dart';
@@ -24,12 +24,11 @@ class NotaTela extends StatefulWidget {
   State<NotaTela> createState() => _NotaTelaState();
 }
 
-class _NotaTelaState extends State<NotaTela> {
+class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
   late TextEditingController _tituloController;
   late TextEditingController _conteudoController;
   late FocusNode _conteudoFocusNode;
 
-  // logica de icons de salvamento
   StatusSalvamento _statusSalvamento = StatusSalvamento.inicial;
   Timer? _debounce;
   late String _tituloOriginal;
@@ -39,10 +38,15 @@ class _NotaTelaState extends State<NotaTela> {
   final List<String> _historicoRedo = [];
   bool _bloquearListener = false;
 
+  // controlar o id da nota caso ela seja criada durante o auto-salvamento
+  int? _notaIdAtual;
+
   @override
   void initState() {
     super.initState();
-
+    WidgetsBinding.instance.addObserver(this); // inicia obs do ciclo de vida do app (caso feche/entre em segundo plano)
+    
+    _notaIdAtual = widget.notaId;
     _tituloOriginal = widget.tituloNota == "Título da nota" || widget.tituloNota.isEmpty 
         ? "" 
         : widget.tituloNota;
@@ -54,10 +58,27 @@ class _NotaTelaState extends State<NotaTela> {
 
     _historicoUndo.add(_conteudoOriginal);
     
-    // monitora digitação e trocar icons de salvamento 
     _tituloController.addListener(_monitorarDigitacao);
     _conteudoController.addListener(_monitorarDigitacao);
     _conteudoController.addListener(_escutarMudancas);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // remove obs
+    _debounce?.cancel();
+    _tituloController.dispose();
+    _conteudoController.dispose();
+    _conteudoFocusNode.dispose();
+    super.dispose();
+  }
+
+  // detecta qnd minimiza ou fecha o app
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _salvarNoBanco(encerrarTela: false);
+    }
   }
 
   void _monitorarDigitacao() {
@@ -66,7 +87,6 @@ class _NotaTelaState extends State<NotaTela> {
     final tituloAtual = _tituloController.text;
     final conteudoAtual = _conteudoController.text;
 
-    // ativa se o conteudo for realmente diferente do que existia ao entrar
     if (tituloAtual != _tituloOriginal || conteudoAtual != _conteudoOriginal) {
       if (_statusSalvamento != StatusSalvamento.salvando) {
         setState(() {
@@ -76,15 +96,55 @@ class _NotaTelaState extends State<NotaTela> {
 
       if (_debounce?.isActive ?? false) _debounce!.cancel();
       _debounce = Timer(const Duration(milliseconds: 1000), () {
-        if (mounted) {
-          setState(() {
-            _statusSalvamento = StatusSalvamento.salvo;
-            // atualiza referência para o icone continuar branco enquanto não houver nova digitação
-            _tituloOriginal = _tituloController.text;
-            _conteudoOriginal = _conteudoController.text;
-          });
-        }
+        _salvarNoBanco(encerrarTela: false);
       });
+    }
+  }
+
+  Future<void> _salvarNoBanco({required bool encerrarTela}) async {
+    String titulo = _tituloController.text.trim();
+    String conteudo = _conteudoController.text.trim();
+
+    // se tudo estiver vazio não salva nada
+    if (titulo.isEmpty && conteudo.isEmpty) {
+      if (encerrarTela && mounted) Navigator.pop(context, false);
+      return;
+    }
+
+    if (titulo.isEmpty && conteudo.isNotEmpty) titulo = "Título da nota";
+
+    try {
+      if (_notaIdAtual == null) {
+        // cria nova nota e guarda o id retornado
+        final novoId = await DatabaseHelper.instance.inserirNota(
+          titulo: titulo,
+          conteudo: conteudo,
+          idUsuario: widget.idUsuario,
+        );
+        _notaIdAtual = novoId;
+      } else {
+        // atualiza nota existente
+        await DatabaseHelper.instance.atualizarNota(
+          idNota: _notaIdAtual!,
+          idUsuario: widget.idUsuario,
+          titulo: titulo,
+          conteudo: conteudo,
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _statusSalvamento = StatusSalvamento.salvo;
+          _tituloOriginal = _tituloController.text;
+          _conteudoOriginal = _conteudoController.text;
+        });
+
+        if (encerrarTela) {
+          Navigator.pop(context, true);
+        }
+      }
+    } catch (e) {
+      debugPrint("Erro ao salvar: $e");
     }
   }
 
@@ -100,16 +160,6 @@ class _NotaTelaState extends State<NotaTela> {
     }
   }
 
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _tituloController.dispose();
-    _conteudoController.dispose();
-    _conteudoFocusNode.dispose();
-    super.dispose();
-  }
-
-  // icones para a barra inferior - salvamento
   Widget _buildStatusIcon() {
     switch (_statusSalvamento) {
       case StatusSalvamento.inicial:
@@ -119,37 +169,6 @@ class _NotaTelaState extends State<NotaTela> {
       case StatusSalvamento.salvo:
         return const Icon(Icons.filter_drama_sharp, color: Colors.white);
     }
-  }
-
-  // função para salvar os dados
-  Future<void> _voltarESalvar() async {
-    String titulo = _tituloController.text.trim();
-    String conteudo = _conteudoController.text.trim();
-
-    if (titulo.isEmpty && conteudo.isEmpty) {
-      Navigator.pop(context, false);
-      return;
-    }
-
-    if (titulo.isEmpty && conteudo.isNotEmpty) titulo = "Título da nota";
-
-    if (widget.notaId == null) {
-      await DatabaseHelper.instance.inserirNota(
-        titulo: titulo,
-        conteudo: conteudo,
-        idUsuario: widget.idUsuario,
-      );
-    } else {
-      await DatabaseHelper.instance.atualizarNota(
-        idNota: widget.notaId!,
-        idUsuario: widget.idUsuario,
-        titulo: titulo,
-        conteudo: conteudo,
-      );
-    }
-
-    if (!mounted) return;
-    Navigator.pop(context, true);
   }
 
   void _desfazer() {
@@ -194,9 +213,9 @@ class _NotaTelaState extends State<NotaTela> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              if (widget.notaId != null) {
+              if (_notaIdAtual != null) {
                 await DatabaseHelper.instance.excluirNota(
-                  idNota: widget.notaId!,
+                  idNota: _notaIdAtual!,
                   idUsuario: widget.idUsuario,
                 );
               }
@@ -235,12 +254,10 @@ class _NotaTelaState extends State<NotaTela> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false, // impede a saida direta para forçar o salvamento - barra inferior/superior do cel/nav 
+      canPop: false, 
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        
-        // qnd usa o botão do sistema ou gesto de voltar
-        await _voltarESalvar();
+        await _salvarNoBanco(encerrarTela: true);
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: const SystemUiOverlayStyle(
@@ -261,7 +278,7 @@ class _NotaTelaState extends State<NotaTela> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.arrow_circle_left_outlined, color: Colors.grey, size: 30),
-                            onPressed: _voltarESalvar,
+                            onPressed: () => _salvarNoBanco(encerrarTela: true),
                           ),
                           Expanded(
                             child: TextField(

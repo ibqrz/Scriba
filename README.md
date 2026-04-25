@@ -1,18 +1,77 @@
-# Scriba
+<p id="desc"></p>
 
-Projeto acadêmico de aplicativo de notas com Flutter, autenticação local e persistência em SQLite.
+# :black_nib: Scriba
 
-## Visão geral
+Suas Ideias em Ordem 
 
-O repositório contém um app chamado Scriba, desenvolvido para gerenciamento de notas com fluxo de cadastro, login e CRUD de notas por usuário.
+O Scriba é um aplicativo de gerenciamento de notas pessoais desenvolvido em Flutter. Ele permite que usuários organizem seus pensamentos de forma rápida, segura e persistente, contando com uma interface intuitiva e suporte a múltiplos perfis de usuário localmente.
 
-Principais funcionalidades:
+```Em desenvolvimento```
 
-- Cadastro de usuário local.
-- Login com validação no banco local.
-- Criação, edição, listagem e exclusão lógica de notas.
-- Isolamento de dados por usuário.
-- Chat local e histórico de conversas.
+## :mag_right: Menu 
+
+<ul>
+    <li>
+        <a href="#desc">Descrição</a>
+    </li>
+    <li>
+        <a href="#func">Funcionalidades Atuais</a>
+    </li>
+    <li>
+        <a href="#tec">Tecnologias Utilizadas</a>
+    </li>
+	<li>
+        <a href="#estrutura">Estrutura do repositório</a>
+    </li>
+	<li>
+        <a href="#stack">Stack técnica</a>
+    </li>
+    <li>
+        <a href="#rodar">Como rodar</a>
+    </li>
+    <li>
+        <a href="#modelodb">Modelo de dadosl</a>
+    </li>
+    <li>
+        <a href="#pesistencia">Persistência e ambiente</a>
+    </li>
+    <li>
+        <a href="#fluxo">Fluxo funcional</a>
+    </li>
+    <li>
+        <a href="#colaboradores">Colaboradores</a>
+    </li>
+</ul>
+
+
+<p id="func"></p>
+
+## Funcionalidades Atuais
+
+- Gestão de Notas (CRUD): Criação, leitura, ordenação e exclusão de notas.
+
+- Persistência Local: Integração total com banco de dados SQLite para garantir que os dados não sejam perdidos ao fechar o app.
+
+- Busca Inteligente: Filtro em tempo real por título de nota diretamente na tela inicial.
+
+- Interface Responsiva: Layout adaptável para modo retrato (portrait) e paisagem (landscape), corrigindo problemas de overflow em telas menores.
+
+
+<p id="tec"></p>
+
+## Tecnologias Utilizadas
+
+- Linguagem: Dart
+
+- Framework: Flutter
+
+- Banco de Dados: SQLite (via sqflite)
+
+- Arquitetura: Clean Code e separação de estados com StatefulWidgets.
+
+- Design: Prototipado no Figma.
+
+<p id="estrutura"></p>
 
 ## Estrutura do repositório
 
@@ -20,12 +79,33 @@ Principais funcionalidades:
 - `lib/`: código de telas e camada de dados.
 - `web/`: arquivos da versão web, incluindo assets do SQLite web.
 
+<p id="stack"></p>
+
 ## Stack técnica
 
 - Flutter 3.41.x
 - Dart 3.11.x
 - SQLite via `sqflite`
 - Suporte SQLite em desktop/web via `sqflite_common_ffi` e `sqflite_common_ffi_web`
+
+<p id="rodar"></p>
+
+## :rocket: Como rodar
+Clone o repo: git clone https://github.com/seu-usuario/scriba.git
+
+Rode ```flutter upgrade```
+
+Rode ```flutter pub get```
+
+Pressione ```Ctrl + Shift + P``` (Windows/Linux) ou ```CMD + Shift + P``` (Mac).
+
+Digite "Dart: Restart Analysis Server".
+
+Selecione a opção e aguarde alguns segundos até que o motor de análise processe o projeto novamente.
+
+Conecte um emulador ou celular e dê ```flutter run```
+
+<p id="modelodb"></p>
 
 ## Modelo de dados (resumo)
 
@@ -54,38 +134,15 @@ Relacionamento:
 
 ![alt text](image.png)
 
-## Como usar o repositório
-
-### 1) Clonar e entrar no projeto
-
-```bash
-git clone <url-do-repositorio>
-cd scriba
-```
-
-### 2) Instalar dependências
-
-```bash
-flutter pub get
-```
-
-### 3) Executar no Chrome
-
-```bash
-flutter run -d chrome --web-port 8080
-```
-
-### 4) Executar análise estática
-
-```bash
-flutter analyze
-```
+<p id="persistencia"></p>
 
 ## Persistência e ambiente
 
 - Em Web: os dados são salvos no IndexedDB do navegador.
 - Em Android/Desktop: os dados ficam em armazenamento local do app.
 - Os dados locais não são enviados no `git push`; somente código vai para o repositório.
+
+<p id="fluxo"></p>
 
 ## Fluxo funcional
 
@@ -95,10 +152,12 @@ flutter analyze
 4. Usuário cria, edita e exclui notas.
 5. Exclusão de nota é lógica (`deletado_em`).
 
-## Orientação técnica para evolução
+<p id="colaboradores"></p>
 
-- Substituir hash simples de senha por hash seguro com salt.
-- Criar suíte de testes automatizados (unit e widget).
-- Extrair camada de repositórios para separar melhor UI e dados.
-- Adicionar persistência de sessão de login.
-- Evoluir para backend remoto caso seja necessário sincronizar dados entre dispositivos.
+## :busts_in_silhouette: Colaboradores
+
+Giovana Pereira Gustavo
+
+Isabel Queiroz Almeida
+
+Isaias Neri da Conceição Junior
