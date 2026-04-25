@@ -56,7 +56,6 @@ O Scriba é um aplicativo de gerenciamento de notas pessoais desenvolvido em Flu
 
 - Interface Responsiva: Layout adaptável para modo retrato (portrait) e paisagem (landscape), corrigindo problemas de overflow em telas menores.
 
-- Navegação Fluida: Sistema de menu lateral (Drawer) e transições de tela com gerenciamento automático de foco e teclado.
 
 <p id="tec"></p>
 
@@ -94,11 +93,11 @@ O Scriba é um aplicativo de gerenciamento de notas pessoais desenvolvido em Flu
 ## :rocket: Como rodar
 Clone o repo: git clone https://github.com/seu-usuario/scriba.git
 
-Rode ```fluuter upgrade```
+Rode ```flutter upgrade```
 
 Rode ```flutter pub get```
 
-Pressione ```Ctrl + Shift + P``` (Windows/Linux) ou ```Cmd + Shift + P``` (Mac).
+Pressione ```Ctrl + Shift + P``` (Windows/Linux) ou ```CMD + Shift + P``` (Mac).
 
 Digite "Dart: Restart Analysis Server".
 
