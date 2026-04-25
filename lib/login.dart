@@ -152,8 +152,8 @@ class _LoginTelaState extends State<LoginTela> {
                   suffixIcon: IconButton(
                     icon: Icon(
                       _senhaEscondida
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       color: Colors.grey,
                     ),
                     onPressed: () {
