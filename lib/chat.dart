@@ -148,7 +148,7 @@ class _ChatTelaState extends State<ChatTela> {
               decoration: InputDecoration(
                 hintText: 'Pergunte algo...',
                 hintStyle: const TextStyle(color: Colors.grey),
-                prefixIcon: const Icon(Icons.flash_on, color: Color(0xFF31A89C)),
+                prefixIcon: const Icon(Icons.emoji_objects_outlined, color: Color(0xFF31A89C)),
                 fillColor: Colors.grey[100],
                 filled: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),

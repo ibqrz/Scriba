@@ -17,6 +17,8 @@ class _CadastroTelaState extends State<CadastroTela> {
   bool _senhaEscondida = true;
   bool _carregando = false;
 
+  final Color corPrincipal = const Color.fromARGB(255, 49, 168, 156);
+
   @override
   void dispose() {
     _nomeController.dispose();
@@ -81,6 +83,8 @@ class _CadastroTelaState extends State<CadastroTela> {
     }
   }
 
+// ------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -116,13 +120,18 @@ class _CadastroTelaState extends State<CadastroTela> {
             Center(
               child: TextField(
                 controller: _nomeController,
+                cursorColor: corPrincipal,
                 decoration: InputDecoration(
                   labelText: 'Digite seu nome',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  floatingLabelStyle: TextStyle(color: corPrincipal),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      width: 2.0,
-                    ),
+                    borderSide: const BorderSide(width: 2.0, color: Colors.black),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(width: 2.0, color: corPrincipal),
                   ),
                 ),
               ),
@@ -131,35 +140,45 @@ class _CadastroTelaState extends State<CadastroTela> {
             Center(
               child: TextField(
                 controller: _emailController,
+                cursorColor: corPrincipal,
                 decoration: InputDecoration(
                   labelText: 'Digite seu e-mail',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  floatingLabelStyle: TextStyle(color: corPrincipal),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      width: 2.0,
-                    ),
+                    borderSide: const BorderSide(width: 2.0, color: Colors.black),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(width: 2.0, color: corPrincipal),
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            
-
             Center(
               child: TextField(
                 controller: _senhaController,
-                obscureText: _senhaEscondida, 
+                obscureText: _senhaEscondida,
+                cursorColor: corPrincipal,
                 decoration: InputDecoration(
                   labelText: 'Digite sua senha',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  floatingLabelStyle: TextStyle(color: corPrincipal),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      width: 2.0,
-                    ),
+                    borderSide: const BorderSide(width: 2.0, color: Colors.black),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(width: 2.0, color: corPrincipal),
                   ),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _senhaEscondida ? Icons.visibility : Icons.visibility_off,
+                      _senhaEscondida
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
                       color: Colors.grey,
                     ),
                     onPressed: () {
@@ -171,8 +190,6 @@ class _CadastroTelaState extends State<CadastroTela> {
                 ),
               ),
             ),
-
-
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -182,7 +199,7 @@ class _CadastroTelaState extends State<CadastroTela> {
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(80, 60),
-                      backgroundColor: const Color.fromARGB(255, 49, 168, 156),
+                      backgroundColor: corPrincipal,
                       foregroundColor: Colors.white,
                       side: const BorderSide(
                           color: Color.fromARGB(255, 28, 125, 115), width: 1),
