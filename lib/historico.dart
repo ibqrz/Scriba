@@ -14,8 +14,6 @@ class _HistoricoTelaState extends State<HistoricoTela> {
 
     listaDeConversas.sort((a, b) => b.lastUpdate.compareTo(a.lastUpdate));
 
-// -------------------------------------------------------------------
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Histórico de Chats", style: TextStyle(color: Colors.white)),

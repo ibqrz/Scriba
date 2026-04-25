@@ -1,20 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:scriba/nota.dart'; 
 import 'chat.dart';
+import 'database_helper.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({
+    super.key,
+    required this.idUsuario,
+    this.nomeUsuario,
+  });
+
+  final int idUsuario;
+  final String? nomeUsuario;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Map<String, String>> notas = [];
+  List<Map<String, dynamic>> notas = [];
   String textoBusca = ""; 
   final FocusNode _focoBusca = FocusNode();
 
+  @override
+  void initState() {
+    super.initState();
+    _carregarNotas();
+  }
+
+  Future<void> _carregarNotas() async {
+    final notasDoBanco = await DatabaseHelper.instance.getNotas(widget.idUsuario);
+    if (!mounted) return;
+    setState(() {
+      notas = notasDoBanco;
+    });
+  }
+
+  // FUNÇÃO MELHORADA PARA FECHAR TECLADO
   void _irParaTela(Widget tela) async {
+    // Fecha o teclado antes de iniciar a transição
     _focoBusca.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
 
@@ -23,24 +47,20 @@ class _HomePageState extends State<HomePage> {
       MaterialPageRoute(builder: (context) => tela),
     );
 
+    // Garante que o teclado não "ressuscite" ao voltar para a Home
     FocusManager.instance.primaryFocus?.unfocus();
 
-    if (resultado != null && resultado is Map<String, dynamic>) {
-      setState(() {
-        if (resultado['excluir'] != true) {
-          notas.insert(0, {
-            'titulo': resultado['titulo']?.toString() ?? "",
-            'conteudo': resultado['conteudo']?.toString() ?? "",
-          });
-        }
-      });
+    if (resultado == true) {
+      await _carregarNotas();
     }
   }
 
-  void _excluirNota(Map<String, String> notaParaExcluir) {
-    setState(() {
-      notas.remove(notaParaExcluir);
-    });
+  Future<void> _excluirNota(int idNota) async {
+    await DatabaseHelper.instance.excluirNota(
+      idNota: idNota,
+      idUsuario: widget.idUsuario,
+    );
+    await _carregarNotas();
   }
 
   @override
@@ -51,13 +71,42 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    List<Map<String, String>> notasFiltradas = notas.where((nota) {
-      final titulo = (nota['titulo'] ?? "").toLowerCase();
-      return titulo.contains(textoBusca.toLowerCase());
-    }).toList();
+    List<Map<String, dynamic>> listaParaExibir;
 
-    bool pesquisaSemResultado = textoBusca.isNotEmpty && notasFiltradas.isEmpty;
-    List<Map<String, String>> listaParaExibir = pesquisaSemResultado ? notas : notasFiltradas;
+    if (textoBusca.isEmpty) {
+      listaParaExibir = List.from(notas);
+    } else {
+      listaParaExibir = notas.where((nota) {
+        final String tituloOriginal = (nota['titulo'] ?? "").toString().trim();
+        final String tituloParaBusca = tituloOriginal.isEmpty 
+            ? "título da nota" 
+            : tituloOriginal.toLowerCase();
+            
+        return tituloParaBusca.contains(textoBusca.toLowerCase());
+      }).toList();
+
+      if (listaParaExibir.isEmpty) {
+        listaParaExibir = List.from(notas);
+      } else {
+        listaParaExibir.sort((a, b) {
+          final String tA = (a['titulo'] ?? "").toString().trim().isEmpty 
+              ? "título da nota" 
+              : a['titulo'].toString().toLowerCase();
+          final String tB = (b['titulo'] ?? "").toString().trim().isEmpty 
+              ? "título da nota" 
+              : b['titulo'].toString().toLowerCase();
+          return tA.compareTo(tB);
+        });
+      }
+    }
+
+    bool pesquisaSemResultado = textoBusca.isNotEmpty && 
+        !notas.any((nota) {
+          final String t = (nota['titulo'] ?? "").toString().trim().isEmpty 
+              ? "título da nota" 
+              : nota['titulo'].toString().toLowerCase();
+          return t.contains(textoBusca.toLowerCase());
+        });
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -105,6 +154,24 @@ class _HomePageState extends State<HomePage> {
             const Spacer(),
             const Divider(),
             Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.account_circle, color: Colors.grey, size: 40),
+                  const SizedBox(height: 5),
+                  Text(
+                    widget.nomeUsuario ?? "Usuário",
+                    style: const TextStyle(
+                      //fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(),
+            Padding(
               padding: const EdgeInsets.only(bottom: 30.0),
               child: Center(
                 child: TextButton.icon(
@@ -124,9 +191,13 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 49, 168, 156),
         foregroundColor: Colors.white,
-        title: const Text("Home", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Home", 
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: GestureDetector(
+        // Isso fecha o teclado ao clicar em qualquer área vazia da tela
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -158,7 +229,7 @@ class _HomePageState extends State<HomePage> {
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              onPressed: () => _irParaTela(const NotaTela(textoNota: "", tituloNota: "")),
+              onPressed: () => _irParaTela(NotaTela(textoNota: "", tituloNota: "", notaId: null, idUsuario: widget.idUsuario)),
               child: const Text('NOVA NOTA'),
             ),
             const SizedBox(height: 20),
@@ -183,52 +254,50 @@ class _HomePageState extends State<HomePage> {
                 ],
               )
             else
-              ...listaParaExibir.map((nota) {
-                return Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.only(bottom: 15),
-                  child: ListTile(
-                    title: Text(nota['titulo'] == "" ? "Título da nota" : (nota['titulo'] ?? "Título da nota")),
-                    subtitle: Text(
-                      nota['conteudo'] ?? "",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.redAccent),
-                      onPressed: () => _excluirNota(nota),
-                    ),
-                    onTap: () async {
-                      _focoBusca.unfocus();
-                      FocusManager.instance.primaryFocus?.unfocus();
-                      
-                      final resultadoRetornado = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => NotaTela(
-                            textoNota: nota['conteudo'] ?? "",
-                            tituloNota: nota['titulo'] ?? "", 
+              ...listaParaExibir.asMap().entries.map((entry) {
+                int index = entry.key;
+                var nota = entry.value;
+                bool ultimaNota = index == listaParaExibir.length - 1;
+
+                return Padding(
+                  padding: EdgeInsets.only(bottom: ultimaNota ? 80 : 15),
+                  child: Card(
+                    elevation: 3,
+                    child: ListTile(
+                      title: Text((nota['titulo'] ?? "").toString().trim().isEmpty ? "Título da nota" : nota['titulo']),
+                      subtitle: Text(
+                        nota['conteudo'] ?? "",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        onPressed: () => _excluirNota(nota['id_nota'] as int),
+                      ),
+                      onTap: () async {
+                        // IMPORTANTE: Unfocus antes de navegar por aqui também
+                        FocusManager.instance.primaryFocus?.unfocus();
+
+                        await DatabaseHelper.instance.atualizarTimestamp(
+                          nota['id_nota'] as int,
+                          widget.idUsuario,
+                        );
+                        
+                        await _carregarNotas();
+
+                        _irParaTela(
+                          NotaTela(
+                            textoNota: nota['conteudo']?.toString() ?? "",
+                            tituloNota: nota['titulo']?.toString() ?? "",
+                            notaId: nota['id_nota'] as int,
+                            idUsuario: widget.idUsuario,
                           ),
-                        ),
-                      );
-
-                      FocusManager.instance.primaryFocus?.unfocus();
-
-                      if (resultadoRetornado != null && resultadoRetornado is Map<String, dynamic>) {
-                        setState(() {
-                          notas.remove(nota);
-                          if (resultadoRetornado['excluir'] != true) {
-                            notas.insert(0, {
-                              'titulo': resultadoRetornado['titulo']?.toString() ?? "",
-                              'conteudo': resultadoRetornado['conteudo']?.toString() ?? "",
-                            });
-                          }
-                        });
-                      }
-                    },
+                        );
+                      },
+                    ),
                   ),
                 );
-              }).toList(),
+              }),
           ],
         ),
       ),
