@@ -8,6 +8,7 @@ O Scriba é um aplicativo de gerenciamento de notas pessoais desenvolvido em Flu
 
 ```Em desenvolvimento```
 
+
 ## :mag_right: Menu 
 
 <ul>
@@ -71,6 +72,7 @@ O Scriba é um aplicativo de gerenciamento de notas pessoais desenvolvido em Flu
 
 - Design: Prototipado no Figma.
 
+
 <p id="estrutura"></p>
 
 ## Estrutura do repositório
@@ -78,6 +80,7 @@ O Scriba é um aplicativo de gerenciamento de notas pessoais desenvolvido em Flu
 - `./`: app Flutter principal.
 - `lib/`: código de telas e camada de dados.
 - `web/`: arquivos da versão web, incluindo assets do SQLite web.
+
 
 <p id="stack"></p>
 
@@ -87,6 +90,7 @@ O Scriba é um aplicativo de gerenciamento de notas pessoais desenvolvido em Flu
 - Dart 3.11.x
 - SQLite via `sqflite`
 - Suporte SQLite em desktop/web via `sqflite_common_ffi` e `sqflite_common_ffi_web`
+
 
 <p id="rodar"></p>
 
@@ -104,6 +108,7 @@ Digite "Dart: Restart Analysis Server".
 Selecione a opção e aguarde alguns segundos até que o motor de análise processe o projeto novamente.
 
 Conecte um emulador ou celular e dê ```flutter run```
+
 
 <p id="modelodb"></p>
 
@@ -134,6 +139,7 @@ Relacionamento:
 
 ![alt text](image.png)
 
+
 <p id="persistencia"></p>
 
 ## Persistência e ambiente
@@ -141,6 +147,7 @@ Relacionamento:
 - Em Web: os dados são salvos no IndexedDB do navegador.
 - Em Android/Desktop: os dados ficam em armazenamento local do app.
 - Os dados locais não são enviados no `git push`; somente código vai para o repositório.
+
 
 <p id="fluxo"></p>
 
@@ -151,6 +158,7 @@ Relacionamento:
 3. App carrega notas vinculadas ao usuário logado.
 4. Usuário cria, edita e exclui notas.
 5. Exclusão de nota é lógica (`deletado_em`).
+
 
 <p id="colaboradores"></p>
 
