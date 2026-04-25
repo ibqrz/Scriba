@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:scriba/nota.dart'; 
+import 'package:scriba/nota.dart';
 import 'chat.dart';
 import 'database_helper.dart';
 
@@ -19,7 +19,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> notas = [];
-  String textoBusca = ""; 
+  String textoBusca = "";
   final FocusNode _focoBusca = FocusNode();
 
   @override
@@ -36,9 +36,9 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // FUNÇÃO MELHORADA PARA FECHAR TECLADO
+  // FUNÇÃO DE NAVEGAÇÃO COM GERENCIAMENTO DE TECLADO REFORÇADO
   void _irParaTela(Widget tela) async {
-    // Fecha o teclado antes de iniciar a transição
+    // Fecha o teclado antes de ir
     _focoBusca.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
 
@@ -48,10 +48,13 @@ class _HomePageState extends State<HomePage> {
     );
 
     // Garante que o teclado não "ressuscite" ao voltar para a Home
-    FocusManager.instance.primaryFocus?.unfocus();
+    if (mounted) {
+      _focoBusca.unfocus();
+      FocusManager.instance.primaryFocus?.unfocus();
 
-    if (resultado == true) {
-      await _carregarNotas();
+      if (resultado == true) {
+        await _carregarNotas();
+      }
     }
   }
 
@@ -73,15 +76,13 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> listaParaExibir;
 
+    // Lógica de Filtro
     if (textoBusca.isEmpty) {
       listaParaExibir = List.from(notas);
     } else {
       listaParaExibir = notas.where((nota) {
         final String tituloOriginal = (nota['titulo'] ?? "").toString().trim();
-        final String tituloParaBusca = tituloOriginal.isEmpty 
-            ? "título da nota" 
-            : tituloOriginal.toLowerCase();
-            
+        final String tituloParaBusca = tituloOriginal.isEmpty ? "título da nota" : tituloOriginal.toLowerCase();
         return tituloParaBusca.contains(textoBusca.toLowerCase());
       }).toList();
 
@@ -89,115 +90,120 @@ class _HomePageState extends State<HomePage> {
         listaParaExibir = List.from(notas);
       } else {
         listaParaExibir.sort((a, b) {
-          final String tA = (a['titulo'] ?? "").toString().trim().isEmpty 
-              ? "título da nota" 
-              : a['titulo'].toString().toLowerCase();
-          final String tB = (b['titulo'] ?? "").toString().trim().isEmpty 
-              ? "título da nota" 
-              : b['titulo'].toString().toLowerCase();
+          final String tA = (a['titulo'] ?? "").toString().trim().isEmpty ? "título da nota" : a['titulo'].toString().toLowerCase();
+          final String tB = (b['titulo'] ?? "").toString().trim().isEmpty ? "título da nota" : b['titulo'].toString().toLowerCase();
           return tA.compareTo(tB);
         });
       }
     }
 
-    bool pesquisaSemResultado = textoBusca.isNotEmpty && 
+    bool pesquisaSemResultado = textoBusca.isNotEmpty &&
         !notas.any((nota) {
-          final String t = (nota['titulo'] ?? "").toString().trim().isEmpty 
-              ? "título da nota" 
-              : nota['titulo'].toString().toLowerCase();
+          final String t = (nota['titulo'] ?? "").toString().trim().isEmpty ? "título da nota" : nota['titulo'].toString().toLowerCase();
           return t.contains(textoBusca.toLowerCase());
         });
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
+      // Fecha o teclado automaticamente ao abrir o menu lateral
+      onDrawerChanged: (isOpened) {
+        if (isOpened) FocusManager.instance.primaryFocus?.unfocus();
+      },
       drawer: Drawer(
-        child: Column(
-          children: [
-            Container(
-              height: 120,
-              width: double.infinity,
-              padding: const EdgeInsets.only(left: 20, top: 40),
-              decoration: const BoxDecoration(
-                color: Color.fromARGB(255, 49, 168, 156),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SCRIBA',
-                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 120,
+                        width: double.infinity,
+                        padding: const EdgeInsets.only(left: 20, top: 40),
+                        decoration: const BoxDecoration(
+                          color: Color.fromARGB(255, 49, 168, 156),
+                        ),
+                        child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SCRIBA',
+                              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'Suas ideias em ordem',
+                              style: TextStyle(color: Colors.white70, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.note_alt_outlined),
+                        title: const Text('Minhas Notas'),
+                        onTap: () {
+                          FocusManager.instance.primaryFocus?.unfocus();
+                          Navigator.pop(context);
+                        },
+                      ),
+                      const Divider(),
+                      ListTile(
+                        leading: const Icon(Icons.add_comment_outlined),
+                        title: const Text('Chat'),
+                        onTap: () {
+                          _irParaTela(const ChatTela(textoNota: "", tituloNota: "Chat Geral"));
+                        },
+                      ),
+                      const Spacer(),
+                      const Divider(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.account_circle, color: Colors.grey, size: 40),
+                            const SizedBox(height: 5),
+                            Text(
+                              widget.nomeUsuario ?? "Usuário",
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 30.0),
+                        child: Center(
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                            icon: const Icon(Icons.logout),
+                            label: const Text("SAIR", style: TextStyle(fontWeight: FontWeight.bold)),
+                            onPressed: () {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Suas ideias em ordem',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.note_alt_outlined),
-              title: const Text('Minhas Notas'),
-              onTap: () {
-                FocusManager.instance.primaryFocus?.unfocus();
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.add_comment_outlined),
-              title: const Text('Chat'),
-              onTap: () {
-                _irParaTela(const ChatTela(textoNota: "", tituloNota: "Chat Geral"));
-              },
-            ),
-            const Spacer(),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.account_circle, color: Colors.grey, size: 40),
-                  const SizedBox(height: 5),
-                  Text(
-                    widget.nomeUsuario ?? "Usuário",
-                    style: const TextStyle(
-                      //fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 30.0),
-              child: Center(
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-                  icon: const Icon(Icons.logout),
-                  label: const Text("SAIR", style: TextStyle(fontWeight: FontWeight.bold)),
-                  onPressed: () {
-                    FocusManager.instance.primaryFocus?.unfocus();
-                    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-                  },
                 ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 49, 168, 156),
         foregroundColor: Colors.white,
         title: const Text(
-          "Home", 
+          "Home",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       body: GestureDetector(
-        // Isso fecha o teclado ao clicar em qualquer área vazia da tela
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -210,6 +216,10 @@ class _HomePageState extends State<HomePage> {
                 setState(() {
                   textoBusca = valor;
                 });
+              },
+              // Fecha o teclado ao clicar na lupa/pesquisar do teclado
+              onSubmitted: (valor) {
+                _focoBusca.unfocus();
               },
               leading: const Icon(Icons.search, color: Colors.black),
               backgroundColor: WidgetStateProperty.all(Colors.white),
@@ -246,10 +256,8 @@ class _HomePageState extends State<HomePage> {
               Column(
                 children: [
                   const SizedBox(height: 50),
-                  Image.asset('assets/home.png', 
-                    width: 300, 
-                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.notes, size: 100, color: Colors.grey)
-                  ),
+                  Image.asset('assets/home.png',
+                      width: 300, errorBuilder: (context, error, stackTrace) => const Icon(Icons.notes, size: 100, color: Colors.grey)),
                   const Text("Nenhuma nota por aqui...", style: TextStyle(color: Colors.grey)),
                 ],
               )
@@ -275,14 +283,13 @@ class _HomePageState extends State<HomePage> {
                         onPressed: () => _excluirNota(nota['id_nota'] as int),
                       ),
                       onTap: () async {
-                        // IMPORTANTE: Unfocus antes de navegar por aqui também
                         FocusManager.instance.primaryFocus?.unfocus();
 
                         await DatabaseHelper.instance.atualizarTimestamp(
                           nota['id_nota'] as int,
                           widget.idUsuario,
                         );
-                        
+
                         await _carregarNotas();
 
                         _irParaTela(
