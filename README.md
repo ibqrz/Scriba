@@ -1,104 +1,240 @@
 # Scriba
 
-Projeto acadêmico de aplicativo de notas com Flutter, autenticação local e persistência em SQLite.
+Aplicativo acadêmico de gerenciamento de notas desenvolvido em Flutter, com cadastro e login, persistência local em SQLite e integração com API remota de autenticação e inteligência artificial.
 
-## Visão geral
+## Visão Geral
 
-O repositório contém um app chamado Scriba, desenvolvido para gerenciamento de notas com fluxo de cadastro, login e CRUD de notas por usuário.
+O Scriba foi estruturado para permitir:
 
-Principais funcionalidades:
+- criar usuário local e remoto no mesmo fluxo;
+- fazer login com validação na API e persistência local;
+- armazenar token com validade de 60 minutos;
+- criar, editar, listar e excluir notas por usuário;
+- acessar chat com IA usando `Bearer token`.
 
-- Cadastro de usuário local.
-- Login com validação no banco local.
-- Criação, edição, listagem e exclusão lógica de notas.
-- Isolamento de dados por usuário.
-- Chat local e histórico de conversas.
+## Tecnologias Utilizadas
 
-## Estrutura do repositório
-
-- `./`: app Flutter principal.
-- `lib/`: código de telas e camada de dados.
-- `web/`: arquivos da versão web, incluindo assets do SQLite web.
-
-## Stack técnica
-
-- Flutter 3.41.x
+- Flutter
 - Dart 3.11.x
+- HTTP via `http`
 - SQLite via `sqflite`
-- Suporte SQLite em desktop/web via `sqflite_common_ffi` e `sqflite_common_ffi_web`
+- SQLite desktop via `sqflite_common_ffi`
+- SQLite web via `sqflite_common_ffi_web`
 
-## Modelo de dados (resumo)
+## Estrutura Principal
 
-Entidades:
+- `lib/main.dart`: tela inicial do app
+- `lib/cadastro.dart`: cadastro com API + banco local
+- `lib/login.dart`: login com API + banco local
+- `lib/home.dart`: home, verificação de token e lista de notas
+- `lib/database_helper.dart`: acesso ao SQLite e migrações
+- `lib/api_service.dart`: integração HTTP com as APIs remotas
+- `lib/repositories/auth_repository.dart`: orquestra cadastro e login juntando API + banco local
+- `lib/repositories/note_repository.dart`: orquestra CRUD de notas com o banco local
+- `lib/repositories/chat_repository.dart`: orquestra histórico local e respostas do chat
+- `lib/helpers/form_validators.dart`: validação compartilhada de formulários
+- `lib/nota.dart`: cadastro e edição de notas
+- `lib/chat.dart`: chat da aplicação
+- `lib/historico.dart`: histórico de conversas
+- `lib/chat_model.dart`: modelo de dados do chat
 
-- `usuario`
-	- `id_usuario` (PK)
-	- `nome`
-	- `email` (UNIQUE)
-	- `senha_hash`
-	- `criado_em`
-	- `atualizado_em`
+## Árvore final do projeto
 
-- `nota`
-	- `id_nota` (PK)
-	- `id_usuario` (FK -> usuario.id_usuario)
-	- `titulo`
-	- `conteudo`
-	- `criado_em`
-	- `atualizado_em`
-	- `deletado_em` (soft delete)
-
-Relacionamento:
-
-- Um usuário possui várias notas (1:N).
-
-![alt text](image.png)
-
-## Como usar o repositório
-
-### 1) Clonar e entrar no projeto
-
-```bash
-git clone <url-do-repositorio>
-cd scriba
+```text
+scriba/
+├─ android/
+├─ assets/
+├─ ios/
+├─ lib/
+│  ├─ api_service.dart
+│  ├─ cadastro.dart
+│  ├─ chat.dart
+│  ├─ chat_model.dart
+│  ├─ database_helper.dart
+│  ├─ helpers/
+│  │  └─ form_validators.dart
+│  ├─ historico.dart
+│  ├─ home.dart
+│  ├─ login.dart
+│  ├─ main.dart
+│  ├─ nota.dart
+│  └─ repositories/
+│     ├─ auth_repository.dart
+│     ├─ chat_repository.dart
+│     └─ note_repository.dart
+├─ linux/
+├─ macos/
+├─ pubspec.yaml
+├─ pubspec.lock
+├─ README.md
+├─ test/
+├─ tool/
+├─ web/
+└─ windows/
 ```
 
-### 2) Instalar dependências
+### Legenda da Estrutura
+
+- `lib/`: código-fonte principal do app Flutter.
+- `lib/helpers/`: validações reutilizáveis de formulário.
+- `lib/repositories/`: camada de orquestração entre UI, API e banco local.
+- `tool/`: utilitários do projeto, como o proxy da API para web.
+- `test/`: pasta reservada para testes automatizados.
+- `web/`: recursos da versão web do aplicativo.
+- `android/`, `ios/`, `linux/`, `macos/`, `windows/`: plataformas suportadas pelo Flutter.
+
+## Fluxo da Aplicação
+
+1. O usuário abre a tela inicial.
+2. Escolhe cadastro ou login.
+3. O cadastro faz duas ações:
+	 - cria o usuário na API remota;
+	 - grava o usuário no SQLite local.
+4. O login faz duas ações:
+	 - autentica na API remota;
+	 - grava/atualiza token e dados no SQLite local.
+5. A Home carrega as notas do usuário e verifica expiração do token.
+6. Se o token expirar, o app limpa o token e pede login novamente.
+
+## Separação de Responsabilidades
+
+- `ApiService`: apenas requisições HTTP e token em memória.
+- `DatabaseHelper`: apenas SQLite, migrações e operações locais.
+- `AuthRepository`: coordena o fluxo de cadastro e login entre API e banco local.
+- `NoteRepository`: coordena o CRUD de notas usando apenas o banco local.
+- `ChatRepository`: coordena histórico de conversas e respostas do chat.
+- `FormValidators`: centraliza as mensagens e regras de validação dos formulários.
+- Telas (`cadastro.dart` e `login.dart`): apenas coletam dados da UI e chamam o repositório.
+- Telas de notas/chat: apenas renderizam a interface e delegam a regra para seus repositórios.
+
+## Integração com a API
+
+### Base URLs
+
+- Auth: `https://mobile-ios-login.zani0x03.eti.br/api`
+- IA: `https://mobile-ios-ia.zani0x03.eti.br/api`
+
+### Endpoints usados
+
+- `POST /register`
+- `POST /auth/login`
+- `POST /ai/chat`
+
+### Campos Enviados no Cadastro
+
+```json
+{
+	"name": "Teste",
+	"surname": "User",
+	"login": "testeuser123",
+	"email": "teste123@example.com",
+	"password": "senha123",
+	"sistemaId": "64b511cc-1392-4d37-85af-9c581961de40"
+}
+```
+
+### Campos Enviados no Login
+
+```json
+{
+	"username": "testeuser123",
+	"password": "senha123",
+	"sistemaId": "64b511cc-1392-4d37-85af-9c581961de40"
+}
+```
+
+### Resposta Esperada do Login
+
+O backend retorna, entre outros campos:
+
+- `access_token`
+- `refresh_token`
+- `expires_in`
+- `token_type`
+
+## Banco de Dados Local
+
+### Tabela `usuario`
+
+- `id_usuario`
+- `nome`
+- `sobrenome`
+- `login`
+- `email`
+- `senha_hash`
+- `token`
+- `token_criado_em`
+- `sistema_id`
+- `criado_em`
+- `atualizado_em`
+
+### Tabela `nota`
+
+- `id_nota`
+- `id_usuario`
+- `titulo`
+- `conteudo`
+- `criado_em`
+- `atualizado_em`
+- `deletado_em`
+
+## Persistência dos Dados
+
+- No Web, o SQLite fica salvo no IndexedDB do navegador.
+- No Windows/Linux, o banco é salvo localmente pelo SQLite/FFI.
+- O token é salvo no banco e também mantido em memória durante a sessão.
+
+## Validação do Token
+
+- O token fica válido por 60 minutos.
+- A Home verifica se o token expirou ao abrir.
+- Quando expira, o app:
+	- limpa o token do banco;
+	- limpa o token em memória;
+	- mostra a mensagem "Token expirado. Por favor, faça login novamente.";
+	- redireciona para a tela de login.
+
+## Como Executar
+
+### Instalar dependências
 
 ```bash
 flutter pub get
 ```
 
-### 3) Executar no Chrome
+### Rodar no navegador
 
 ```bash
-flutter run -d chrome --web-port 8080
+flutter run -d chrome --web-port 1623
 ```
 
-### 4) Executar análise estática
+### Rodar no desktop Windows
+
+```bash
+flutter run -d windows
+```
+
+### Analisar o código
 
 ```bash
 flutter analyze
 ```
 
-## Persistência e ambiente
+## Testes Manuais Realizados
 
-- Em Web: os dados são salvos no IndexedDB do navegador.
-- Em Android/Desktop: os dados ficam em armazenamento local do app.
-- Os dados locais não são enviados no `git push`; somente código vai para o repositório.
+- cadastro via API retornando `201 Created`;
+- login via API retornando `200 OK`;
+- token retornando `access_token` e `expires_in`;
+- gravação local do usuário e do token no banco.
 
-## Fluxo funcional
+## Melhorias Futuras
 
-1. Usuário se cadastra.
-2. Usuário faz login.
-3. App carrega notas vinculadas ao usuário logado.
-4. Usuário cria, edita e exclui notas.
-5. Exclusão de nota é lógica (`deletado_em`).
+- logout com limpeza completa da sessão;
+- refresh token automático;
+- integração do chat com persistência completa;
+- testes de widget e integração mais amplos;
+- hash de senha mais seguro no armazenamento local.
 
-## Orientação técnica para evolução
+## Captura de Tela
 
-- Substituir hash simples de senha por hash seguro com salt.
-- Criar suíte de testes automatizados (unit e widget).
-- Extrair camada de repositórios para separar melhor UI e dados.
-- Adicionar persistência de sessão de login.
-- Evoluir para backend remoto caso seja necessário sincronizar dados entre dispositivos.
+![Tela inicial do Scriba](image.png)

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'chat.dart';
-import 'database_helper.dart';
+import 'package:scriba/chat.dart';
+import 'package:scriba/repositories/note_repository.dart';
 
 class NotaTela extends StatefulWidget {
   const NotaTela({
@@ -22,6 +22,7 @@ class NotaTela extends StatefulWidget {
 }
 
 class _NotaTelaState extends State<NotaTela> {
+  final NoteRepository _noteRepository = NoteRepository();
   late TextEditingController _tituloController;
   late TextEditingController _conteudoController;
   late FocusNode _conteudoFocusNode;
@@ -79,14 +80,14 @@ class _NotaTelaState extends State<NotaTela> {
     if (titulo.isEmpty && conteudo.isNotEmpty) titulo = "Título da nota";
 
     if (widget.notaId == null) {
-      await DatabaseHelper.instance.inserirNota(
+      await _noteRepository.salvarNota(
         titulo: titulo,
         conteudo: conteudo,
         idUsuario: widget.idUsuario,
       );
     } else {
-      await DatabaseHelper.instance.atualizarNota(
-        idNota: widget.notaId!,
+      await _noteRepository.salvarNota(
+        notaId: widget.notaId!,
         idUsuario: widget.idUsuario,
         titulo: titulo,
         conteudo: conteudo,
@@ -144,7 +145,7 @@ class _NotaTelaState extends State<NotaTela> {
               Navigator.pop(context);
 
               if (widget.notaId != null) {
-                await DatabaseHelper.instance.excluirNota(
+                await _noteRepository.excluirNota(
                   idNota: widget.notaId!,
                   idUsuario: widget.idUsuario,
                 );

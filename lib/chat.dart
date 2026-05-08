@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'chat_model.dart'; 
-import 'historico.dart';
+import 'package:scriba/chat_model.dart'; 
+import 'package:scriba/historico.dart';
+import 'package:scriba/repositories/chat_repository.dart';
 
 class ChatTela extends StatefulWidget {
   final String textoNota;
@@ -17,31 +18,32 @@ class ChatTela extends StatefulWidget {
 }
 
 class _ChatTelaState extends State<ChatTela> {
+  final ChatRepository _chatRepository = ChatRepository.instance;
   final TextEditingController _controller = TextEditingController();
   late ChatHistory _conversaAtual;
 
   @override
   void initState() {
     super.initState();
-    _conversaAtual = ChatHistory(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: widget.tituloNota.isEmpty ? "Nova Conversa" : widget.tituloNota,
-      messages: [],
-      lastUpdate: DateTime.now(),
+    _conversaAtual = _chatRepository.criarConversa(
+      titulo: widget.tituloNota.isEmpty ? "Nova Conversa" : widget.tituloNota,
     );
-    listaDeConversas.add(_conversaAtual);
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
+    final textoUsuario = _controller.text.trim();
+    final resposta = await _chatRepository.responderMensagem(
+      conversa: _conversaAtual,
+      mensagemUsuario: textoUsuario,
+      tituloNota: widget.tituloNota,
+    );
+
     setState(() {
-      _conversaAtual.messages.add(Message(text: _controller.text, isUser: true));
+      _conversaAtual.messages.add(Message(text: textoUsuario, isUser: true));
       _conversaAtual.lastUpdate = DateTime.now();
       
-      _conversaAtual.messages.add(Message(
-        text: "Entendi! Como posso ajudar com '${widget.tituloNota}'?", 
-        isUser: false
-      ));
+      _conversaAtual.messages.add(Message(text: resposta, isUser: false));
     });
     _controller.clear();
   }

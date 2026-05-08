@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'chat_model.dart'; 
+import 'package:scriba/chat_model.dart'; 
+import 'package:scriba/repositories/chat_repository.dart';
 
 class HistoricoTela extends StatefulWidget {
   const HistoricoTela({super.key});
@@ -9,10 +10,12 @@ class HistoricoTela extends StatefulWidget {
 }
 
 class _HistoricoTelaState extends State<HistoricoTela> {
+  final ChatRepository _chatRepository = ChatRepository.instance;
+
   @override
   Widget build(BuildContext context) {
-
-    listaDeConversas.sort((a, b) => b.lastUpdate.compareTo(a.lastUpdate));
+    final conversas = List<ChatHistory>.from(_chatRepository.conversas)
+      ..sort((a, b) => b.lastUpdate.compareTo(a.lastUpdate));
 
     return Scaffold(
       appBar: AppBar(
@@ -20,12 +23,12 @@ class _HistoricoTelaState extends State<HistoricoTela> {
         backgroundColor: const Color(0xFF31A89C),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: listaDeConversas.isEmpty
+      body: conversas.isEmpty
           ? const Center(child: Text("Nenhum histórico disponível."))
           : ListView.builder(
-              itemCount: listaDeConversas.length,
+              itemCount: conversas.length,
               itemBuilder: (context, index) {
-                final chat = listaDeConversas[index];
+                final chat = conversas[index];
                 return Dismissible(
                   key: Key(chat.id),
                   direction: DismissDirection.endToStart,
@@ -36,7 +39,7 @@ class _HistoricoTelaState extends State<HistoricoTela> {
                     child: const Icon(Icons.delete, color: Colors.white),
                   ),
                   onDismissed: (direction) {
-                    setState(() => listaDeConversas.removeAt(index));
+                    setState(() => _chatRepository.removerConversa(chat));
                   },
                   child: ListTile(
                     leading: const Icon(Icons.chat_bubble_outline, color: Color(0xFF31A89C)),
