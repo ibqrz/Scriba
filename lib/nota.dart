@@ -29,6 +29,7 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
   late TextEditingController _tituloController;
   late TextEditingController _conteudoController;
   late FocusNode _conteudoFocusNode;
+  late VoidCallback _conteudoListener;
 
   final List<String> _historicoUndo = [];
   final List<String> _historicoRedo = [];
@@ -36,6 +37,11 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
 
   // controlar o id da nota caso ela seja criada durante o auto-salvamento
   int? _notaIdAtual;
+  
+  StatusSalvamento _statusSalvamento = StatusSalvamento.inicial;
+  Timer? _debounce;
+  late String _tituloOriginal;
+  late String _conteudoOriginal;
 
   @override
   void initState() {
@@ -51,9 +57,16 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
     _tituloController = TextEditingController(text: _tituloOriginal);
     _conteudoController = TextEditingController(text: _conteudoOriginal);
     _conteudoFocusNode = FocusNode();
+    _conteudoListener = () {
+      if (!mounted) return;
+      _escutarMudancas();
+    };
     
-    _historicoUndo.add(widget.textoNota);
-    _conteudoController.addListener(_escutarMudancas);
+    _historicoUndo.add(_conteudoOriginal);
+    
+    _tituloController.addListener(_monitorarDigitacao);
+    _conteudoController.addListener(_monitorarDigitacao);
+    _conteudoController.addListener(_conteudoListener);
   }
 
   @override
@@ -130,6 +143,20 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
         return const Icon(Icons.cloud_sync_outlined, color: Colors.white);
       case StatusSalvamento.salvo:
         return const Icon(Icons.filter_drama_sharp, color: Colors.white);
+      default:
+        return const Icon(Icons.filter_drama_sharp, color: Colors.grey);
+    }
+  }
+
+  void _escutarMudancas() {
+    if (!_bloquearListener) {
+      final novoTexto = _conteudoController.text;
+      if (_historicoUndo.isEmpty || _historicoUndo.last != novoTexto) {
+        setState(() {
+          _historicoUndo.add(novoTexto);
+          _historicoRedo.clear();
+        });
+      }
     }
   }
 
