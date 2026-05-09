@@ -71,10 +71,12 @@ Future<void> _handleRequest(HttpRequest request) async {
   } catch (error) {
     request.response.statusCode = HttpStatus.badGateway;
     request.response.headers.contentType = ContentType.json;
-    request.response.write(jsonEncode({
-      'message': 'Falha ao encaminhar requisicao',
-      'error': error.toString(),
-    }));
+    request.response.write(
+      jsonEncode({
+        'message': 'Falha ao encaminhar requisicao',
+        'error': error.toString(),
+      }),
+    );
     await request.response.close();
   } finally {
     client.close(force: true);
@@ -83,25 +85,62 @@ Future<void> _handleRequest(HttpRequest request) async {
 
 Uri? _resolveTargetUri(Uri incomingUri) {
   final path = incomingUri.path;
+  const proxyPrefix = '/proxy';
+  const apiPrefix = '/api';
 
-  if (path.startsWith('/proxy/auth')) {
-    final suffix = path.substring('/proxy/auth'.length);
-    return Uri.parse('$_authBaseUrl$suffix').replace(queryParameters: incomingUri.queryParameters.isEmpty ? null : incomingUri.queryParameters);
+  String normalizeSuffix() {
+    if (path.startsWith(proxyPrefix)) {
+      return path.substring(proxyPrefix.length);
+    }
+    if (path.startsWith(apiPrefix)) {
+      return path.substring(apiPrefix.length);
+    }
+    return path;
   }
 
-  if (path.startsWith('/proxy/ia')) {
-    final suffix = path.substring('/proxy/ia'.length);
-    return Uri.parse('$_iaBaseUrl$suffix').replace(queryParameters: incomingUri.queryParameters.isEmpty ? null : incomingUri.queryParameters);
+  final suffix = normalizeSuffix();
+  if (suffix.isEmpty) {
+    return null;
   }
 
+  if (suffix.startsWith('/auth') || suffix.startsWith('/register')) {
+    final target = '$_authBaseUrl$suffix';
+    stdout.writeln('Proxy route auth/register: $path -> $target');
+    return Uri.parse(target).replace(
+      queryParameters: incomingUri.queryParameters.isEmpty
+          ? null
+          : incomingUri.queryParameters,
+    );
+  }
+
+  if (suffix.startsWith('/ia') || suffix.startsWith('/ai')) {
+    final target = '$_iaBaseUrl$suffix';
+    stdout.writeln('Proxy route ia: $path -> $target');
+    return Uri.parse(target).replace(
+      queryParameters: incomingUri.queryParameters.isEmpty
+          ? null
+          : incomingUri.queryParameters,
+    );
+  }
+
+  stdout.writeln('Proxy route not found: $path');
   return null;
 }
 
 void _applyCorsHeaders(HttpResponse response) {
   response.headers.set(HttpHeaders.accessControlAllowOriginHeader, '*');
-  response.headers.set(HttpHeaders.accessControlAllowMethodsHeader, 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  response.headers.set(HttpHeaders.accessControlAllowHeadersHeader, 'Content-Type, Authorization, Accept, Origin, X-Requested-With');
-  response.headers.set(HttpHeaders.accessControlExposeHeadersHeader, 'Content-Type, Authorization');
+  response.headers.set(
+    HttpHeaders.accessControlAllowMethodsHeader,
+    'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+  );
+  response.headers.set(
+    HttpHeaders.accessControlAllowHeadersHeader,
+    'Content-Type, Authorization, Accept, Origin, X-Requested-With',
+  );
+  response.headers.set(
+    HttpHeaders.accessControlExposeHeadersHeader,
+    'Content-Type, Authorization',
+  );
 }
 
 bool _skipRequestHeader(String headerName) {

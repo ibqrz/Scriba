@@ -1,5 +1,5 @@
 param(
-  [int]$WebPort = 1623
+  [int]$WebPort = 0  # 0 = deixar Flutter escolher porta disponível
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,6 +10,7 @@ Push-Location $projectRoot
 $proxyProcess = $null
 $retries = 0
 $maxRetries = 30
+$detectedPort = $null
 
 function Test-ProxyReady {
   try {
@@ -19,6 +20,30 @@ function Test-ProxyReady {
   catch {
     return $false
   }
+}
+
+function Detect-FlutterWebPort {
+  param([int]$InitialPort)
+  
+  # Se a porta foi especificada, return ela
+  if ($InitialPort -gt 0) {
+    return $InitialPort
+  }
+  
+  # Se nenhuma porta foi dada, Flutter vai escolher uma disponível
+  # Vamos procurar nos logs qual porta foi usada
+  $attempts = 0
+  while ($attempts -lt 30) {
+    $logs = flutter run -d chrome 2>&1 | Select-String "Web app" -First 1
+    if ($logs -match "localhost:(\d+)") {
+      return [int]$matches[1]
+    }
+    Start-Sleep -Milliseconds 500
+    $attempts++
+  }
+  
+  # Fallback para porta padrão
+  return 1623
 }
 
 try {
@@ -43,7 +68,23 @@ try {
   }
 
   Write-Host "🌐 Iniciando Flutter Web..." -ForegroundColor Cyan
-  flutter run -d chrome --web-port $WebPort --dart-define=SCRIBA_PROXY_BASE_URL=http://localhost:8080
+  
+  # Montar comando do Flutter
+  $flutterArgs = @("-d", "chrome")
+  
+  if ($WebPort -gt 0) {
+    $flutterArgs += @("--web-port", $WebPort.ToString())
+    $detectedPort = $WebPort
+    Write-Host "📍 Usando porta web fixa: $WebPort" -ForegroundColor Cyan
+  }
+  else {
+    Write-Host "📍 Deixando Flutter escolher porta disponível..." -ForegroundColor Cyan
+  }
+  
+  # Sempre passar dart-define para proxy
+  $flutterArgs += @("--dart-define=SCRIBA_PROXY_BASE_URL=http://localhost:8080")
+  
+  & flutter @flutterArgs
 }
 finally {
   if ($null -ne $proxyProcess -and -not $proxyProcess.HasExited) {

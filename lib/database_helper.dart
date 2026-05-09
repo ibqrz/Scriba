@@ -312,6 +312,21 @@ class DatabaseHelper {
     return resultado.first;
   }
 
+  /// Obtém o usuário pelo login
+  Future<Map<String, dynamic>?> obterUsuarioPorLogin(String login) async {
+    final db = await database;
+    final loginLimpo = login.trim();
+    final resultado = await db.query(
+      'usuario',
+      where: 'login = ?',
+      whereArgs: [loginLimpo],
+      limit: 1,
+    );
+
+    if (resultado.isEmpty) return null;
+    return resultado.first;
+  }
+
   /// Obtém o usuário pelo id
   Future<Map<String, dynamic>?> obterUsuarioPorId(int idUsuario) async {
     final db = await database;

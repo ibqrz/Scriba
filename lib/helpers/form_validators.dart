@@ -27,7 +27,7 @@ class FormValidators {
     required String senha,
   }) {
     if (username.trim().isEmpty || senha.trim().isEmpty) {
-      return 'Informe e-mail/usuário e senha.';
+      return 'Informe usuário e senha.';
     }
 
     return null;

@@ -85,7 +85,10 @@ class AuthRepository {
     }
 
     final token = resultadoApi['token']?.toString();
-    Map<String, dynamic>? usuario = await DatabaseHelper.instance.obterUsuarioPorEmail(username);
+    Map<String, dynamic>? usuario = await DatabaseHelper.instance.obterUsuarioPorLogin(username);
+    if (usuario == null) {
+      usuario = await DatabaseHelper.instance.obterUsuarioPorEmail(username);
+    }
 
     if (usuario != null && token != null) {
       await DatabaseHelper.instance.salvarTokenUsuario(

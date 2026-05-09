@@ -55,14 +55,14 @@ class ApiService {
 
   static Future<Uri> _authEndpoint(String path) async {
     final baseUrl = kIsWeb
-        ? '${await _resolveWebProxyBaseUrl()}/proxy/auth'
+        ? '${await _resolveWebProxyBaseUrl()}/api'
         : _authUrl;
     return Uri.parse('$baseUrl$path');
   }
 
   static Future<Uri> _iaEndpoint(String path) async {
     final baseUrl = kIsWeb
-        ? '${await _resolveWebProxyBaseUrl()}/proxy/ia'
+        ? '${await _resolveWebProxyBaseUrl()}/api'
         : _iaUrl;
     return Uri.parse('$baseUrl$path');
   }

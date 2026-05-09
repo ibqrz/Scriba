@@ -198,6 +198,22 @@ O backend retorna, entre outros campos:
 
 ### Instalar dependências
 
+### Executar o proxy local e o app web
+
+Para iniciar o proxy e a aplicação web juntos, sem precisar de configuração do VS Code ou scripts PowerShell:
+
+```bash
+dart run tool/start_web_dev.dart
+```
+
+O script:
+
+- inicia `tool/api_proxy_server.dart` em `http://localhost:8080`
+- aguarda o proxy responder em `/health`
+- inicia o Flutter Web no Chrome
+- encerra o proxy automaticamente quando o Flutter terminar
+
+
 ```bash
 flutter pub get
 ```

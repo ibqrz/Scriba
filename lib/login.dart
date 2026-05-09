@@ -12,7 +12,7 @@ class LoginTela extends StatefulWidget {
 
 class _LoginTelaState extends State<LoginTela> {
   final AuthRepository _authRepository = AuthRepository();
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _senhaController = TextEditingController();
 
   bool _senhaEscondida = true;
@@ -22,17 +22,17 @@ class _LoginTelaState extends State<LoginTela> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _senhaController.dispose();
     super.dispose();
   }
 
   Future<void> _fazerLogin() async {
-    final email = _emailController.text.trim();
+    final username = _usernameController.text.trim();
     final senha = _senhaController.text.trim();
 
     final erroValidacao = FormValidators.validateLogin(
-      username: email,
+      username: username,
       senha: senha,
     );
 
@@ -49,7 +49,7 @@ class _LoginTelaState extends State<LoginTela> {
 
     try {
       final resultado = await _authRepository.autenticarUsuario(
-        username: email,
+        username: username,
         senha: senha,
       );
 
@@ -133,10 +133,10 @@ class _LoginTelaState extends State<LoginTela> {
             const SizedBox(height: 200),
             Center(
               child: TextField(
-                controller: _emailController,
+                controller: _usernameController,
                 cursorColor: corPrincipal, // muda a cor do cursor (o tracinho que pisca)
                 decoration: InputDecoration(
-                  labelText: 'Digite seu e-mail',
+                  labelText: 'Digite seu usuário',
                   labelStyle: const TextStyle(color: Colors.grey),
                   floatingLabelStyle: TextStyle(color: corPrincipal), // Cor do label quando sobe
                   enabledBorder: OutlineInputBorder(
