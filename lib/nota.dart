@@ -34,6 +34,11 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
   final List<String> _historicoRedo = [];
   bool _bloquearListener = false;
 
+  StatusSalvamento _statusSalvamento = StatusSalvamento.inicial;
+  Timer? _debounce;
+  late String _tituloOriginal;
+  late String _conteudoOriginal;
+  
   // controlar o id da nota caso ela seja criada durante o auto-salvamento
   int? _notaIdAtual;
 
@@ -53,14 +58,15 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
     _conteudoFocusNode = FocusNode();
     
     _historicoUndo.add(widget.textoNota);
-    _conteudoController.addListener(_escutarMudancas);
+    _tituloController.addListener(_monitorarDigitacao);
+    _conteudoController.addListener(_monitorarDigitacao);
+    //_conteudoController.addListener(_escutarMudancas);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _tituloController.dispose();
-    _conteudoController.removeListener(_conteudoListener);
     _conteudoController.dispose();
     _conteudoFocusNode.dispose();
     super.dispose();
