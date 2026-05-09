@@ -78,6 +78,14 @@ class _CadastroTelaState extends State<CadastroTela> {
       }
 
       final usuario = resultado['user'] as Map<String, dynamic>?;
+      if (usuario == null || usuario['id_usuario'] == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Usuário criado, mas não foi possível carregar os dados locais.'),
+          ),
+        );
+        return;
+      }
 
       Navigator.pushAndRemoveUntil(
         context,
