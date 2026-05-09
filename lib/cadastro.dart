@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:scriba/home.dart';
-import 'database_helper.dart';
+import 'package:scriba/helpers/form_validators.dart';
+import 'package:scriba/repositories/auth_repository.dart';
 
 class CadastroTela extends StatefulWidget {
   const CadastroTela({super.key});
@@ -10,7 +11,10 @@ class CadastroTela extends StatefulWidget {
 }
 
 class _CadastroTelaState extends State<CadastroTela> {
+  final AuthRepository _authRepository = AuthRepository();
   final TextEditingController _nomeController = TextEditingController();
+  final TextEditingController _sobrenomeController = TextEditingController();
+  final TextEditingController _loginController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _senhaController = TextEditingController();
 
@@ -22,6 +26,8 @@ class _CadastroTelaState extends State<CadastroTela> {
   @override
   void dispose() {
     _nomeController.dispose();
+    _sobrenomeController.dispose();
+    _loginController.dispose();
     _emailController.dispose();
     _senhaController.dispose();
     super.dispose();
@@ -29,12 +35,21 @@ class _CadastroTelaState extends State<CadastroTela> {
 
   Future<void> _fazerCadastro() async {
     final nome = _nomeController.text.trim();
+    final sobrenome = _sobrenomeController.text.trim();
+    final login = _loginController.text.trim();
     final email = _emailController.text.trim();
     final senha = _senhaController.text.trim();
 
-    if (nome.isEmpty || email.isEmpty || senha.isEmpty) {
+    final erroValidacao = FormValidators.validateCadastro(
+      nome: nome,
+      login: login,
+      email: email,
+      senha: senha,
+    );
+
+    if (erroValidacao != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha nome, e-mail e senha.')),
+        SnackBar(content: Text(erroValidacao)),
       );
       return;
     }
@@ -44,20 +59,25 @@ class _CadastroTelaState extends State<CadastroTela> {
     });
 
     try {
-      final usuario = await DatabaseHelper.instance.cadastrarUsuario(
+      final resultado = await _authRepository.registrarUsuario(
         nome: nome,
+        sobrenome: sobrenome,
+        login: login,
         email: email,
         senha: senha,
       );
 
       if (!mounted) return;
 
-      if (usuario == null) {
+      if (resultado == null || resultado['success'] != true) {
+        final mensagemErro = resultado?['message']?.toString();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('E-mail ja cadastrado. Tente outro.')),
+          SnackBar(content: Text(mensagemErro ?? 'Erro ao registrar usuário.')),
         );
         return;
       }
+
+      final usuario = resultado['user'] as Map<String, dynamic>?;
 
       Navigator.pushAndRemoveUntil(
         context,
@@ -69,10 +89,10 @@ class _CadastroTelaState extends State<CadastroTela> {
         ),
         (route) => false,
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Falha ao cadastrar. Tente novamente.')),
+        SnackBar(content: Text('Falha ao cadastrar: ${e.toString()}')),
       );
     } finally {
       if (mounted) {
@@ -132,6 +152,36 @@ class _CadastroTelaState extends State<CadastroTela> {
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(width: 2.0, color: corPrincipal),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: TextField(
+                controller: _sobrenomeController,
+                decoration: InputDecoration(
+                  labelText: 'Digite seu sobrenome',
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      width: 2.0,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: TextField(
+                controller: _loginController,
+                decoration: InputDecoration(
+                  labelText: 'Digite seu login (usuário)',
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      width: 2.0,
+                    ),
                   ),
                 ),
               ),

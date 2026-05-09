@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'home.dart';
-import 'database_helper.dart';
+import 'package:scriba/home.dart';
+import 'package:scriba/helpers/form_validators.dart';
+import 'package:scriba/repositories/auth_repository.dart';
 
 class LoginTela extends StatefulWidget {
   const LoginTela({super.key});
@@ -10,6 +11,7 @@ class LoginTela extends StatefulWidget {
 }
 
 class _LoginTelaState extends State<LoginTela> {
+  final AuthRepository _authRepository = AuthRepository();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _senhaController = TextEditingController();
 
@@ -29,9 +31,14 @@ class _LoginTelaState extends State<LoginTela> {
     final email = _emailController.text.trim();
     final senha = _senhaController.text.trim();
 
-    if (email.isEmpty || senha.isEmpty) {
+    final erroValidacao = FormValidators.validateLogin(
+      username: email,
+      senha: senha,
+    );
+
+    if (erroValidacao != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Informe e-mail e senha.')),
+        SnackBar(content: Text(erroValidacao)),
       );
       return;
     }
@@ -41,16 +48,28 @@ class _LoginTelaState extends State<LoginTela> {
     });
 
     try {
-      final usuario = await DatabaseHelper.instance.autenticarUsuario(
-        email: email,
+      final resultado = await _authRepository.autenticarUsuario(
+        username: email,
         senha: senha,
       );
 
       if (!mounted) return;
 
-      if (usuario == null) {
+      if (resultado == null || resultado['success'] != true) {
+        final mensagemErro = resultado?['message']?.toString();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Credenciais invalidas.')),
+          SnackBar(
+            content: Text(mensagemErro ?? 'Credenciais inválidas.'),
+          ),
+        );
+        return;
+      }
+
+      final usuarioFinal = resultado['user'] as Map<String, dynamic>?;
+
+      if (usuarioFinal == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao processar login.')),
         );
         return;
       }
@@ -59,16 +78,16 @@ class _LoginTelaState extends State<LoginTela> {
         context,
         MaterialPageRoute(
           builder: (context) => HomePage(
-            idUsuario: usuario['id_usuario'] as int,
-            nomeUsuario: usuario['nome']?.toString(),
+            idUsuario: usuarioFinal['id_usuario'] as int,
+            nomeUsuario: usuarioFinal['nome']?.toString(),
           ),
         ),
         (route) => false,
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Falha ao fazer login.')),
+        SnackBar(content: Text('Falha ao fazer login: ${e.toString()}')),
       );
     } finally {
       if (mounted) {

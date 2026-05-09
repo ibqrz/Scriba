@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:scriba/nota.dart';
-import 'chat.dart';
-import 'database_helper.dart';
+import 'package:scriba/nota.dart'; 
+import 'package:scriba/chat.dart';
+import 'package:scriba/database_helper.dart';
+import 'package:scriba/login.dart';
+import 'package:scriba/api_service.dart';
+import 'package:scriba/repositories/note_repository.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -18,6 +21,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final NoteRepository _noteRepository = NoteRepository();
   List<Map<String, dynamic>> notas = [];
   String textoBusca = "";
   final FocusNode _focoBusca = FocusNode();
@@ -25,11 +29,55 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _verificarTokenEExpirado();
     _carregarNotas();
+    _logSessaoLocal();
+  }
+
+  Future<void> _logSessaoLocal() async {
+    final usuario = await DatabaseHelper.instance.obterUsuarioPorId(widget.idUsuario);
+    final token = usuario?['token']?.toString();
+    final tokenCriadoEm = usuario?['token_criado_em']?.toString();
+    final sistemaId = usuario?['sistema_id']?.toString();
+    final atualizadoEm = usuario?['atualizado_em']?.toString();
+
+    debugPrint(
+      'SESSAO_LOCAL usuario_id=${widget.idUsuario} token_salvo=${token != null && token.isNotEmpty} token_criado_em=$tokenCriadoEm atualizado_em=$atualizadoEm sistema_id=$sistemaId',
+    );
+  }
+
+  /// Verifica se o token expirou
+  Future<void> _verificarTokenEExpirado() async {
+    final expirou = await DatabaseHelper.instance.tokenExpirou(idUsuario: widget.idUsuario);
+    
+    if (expirou) {
+      // Limpar o token expirado
+      await DatabaseHelper.instance.limparToken(idUsuario: widget.idUsuario);
+      ApiService.setToken(null);
+
+      if (!mounted) return;
+
+      // Mostrar mensagem e redirecionar para login
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🔐 Token expirado. Por favor, faça login novamente.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginTela()),
+          (route) => false,
+        );
+      });
+    }
   }
 
   Future<void> _carregarNotas() async {
-    final notasDoBanco = await DatabaseHelper.instance.getNotas(widget.idUsuario);
+    final notasDoBanco = await _noteRepository.listarNotas(widget.idUsuario);
     if (!mounted) return;
     setState(() {
       notas = notasDoBanco;
@@ -59,7 +107,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _excluirNota(int idNota) async {
-    await DatabaseHelper.instance.excluirNota(
+    await _noteRepository.excluirNota(
       idNota: idNota,
       idUsuario: widget.idUsuario,
     );

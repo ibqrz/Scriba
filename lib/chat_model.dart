@@ -17,5 +17,3 @@ class ChatHistory {
     required this.lastUpdate,
   });
 }
-
-List<ChatHistory> listaDeConversas = [];

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'login.dart';
-import 'cadastro.dart';
+import 'package:scriba/login.dart';
+import 'package:scriba/cadastro.dart';
 
 void main() {
 

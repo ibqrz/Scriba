@@ -9,7 +9,7 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._internal();
 
   static const String _dbName = 'scriba.db';
-  static const int _dbVersion = 1;
+  static const int _dbVersion = 3;
 
   Database? _database;
   bool _factoryConfigured = false;
@@ -37,8 +37,12 @@ class DatabaseHelper {
           CREATE TABLE usuario (
             id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
+            sobrenome TEXT,
+            login TEXT NOT NULL UNIQUE,
             email TEXT NOT NULL UNIQUE,
             senha_hash TEXT NOT NULL,
+            token TEXT,
+            sistema_id TEXT,
             criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
           )
@@ -57,7 +61,36 @@ class DatabaseHelper {
           )
         ''');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Migração de v1 para v2: adicionar novos campos
+          try {
+            await db.execute('ALTER TABLE usuario ADD COLUMN sobrenome TEXT');
+          } catch (_) {}
+          
+          try {
+            await db.execute('ALTER TABLE usuario ADD COLUMN login TEXT NOT NULL UNIQUE DEFAULT ""');
+          } catch (_) {}
+          
+          try {
+            await db.execute('ALTER TABLE usuario ADD COLUMN token TEXT');
+          } catch (_) {}
+          
+          try {
+            await db.execute('ALTER TABLE usuario ADD COLUMN sistema_id TEXT');
+          } catch (_) {}
+        }
+        
+        if (oldVersion < 3) {
+          // Migração de v2 para v3: adicionar campo de timestamp do token
+          try {
+            await db.execute('ALTER TABLE usuario ADD COLUMN token_criado_em TEXT');
+          } catch (_) {}
+        }
+      },
     );
+
+    await _ensureUsuarioColumns(_database!);
 
     return _database!;
   }
@@ -76,6 +109,36 @@ class DatabaseHelper {
     _factoryConfigured = true;
   }
 
+  Future<void> _ensureUsuarioColumns(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(usuario)');
+    final existing = columns
+        .map((row) => row['name']?.toString())
+        .whereType<String>()
+        .toSet();
+
+    Future<void> addColumn(String columnSql) async {
+      try {
+        await db.execute(columnSql);
+      } catch (_) {}
+    }
+
+    if (!existing.contains('sobrenome')) {
+      await addColumn('ALTER TABLE usuario ADD COLUMN sobrenome TEXT');
+    }
+    if (!existing.contains('login')) {
+      await addColumn('ALTER TABLE usuario ADD COLUMN login TEXT NOT NULL UNIQUE DEFAULT ""');
+    }
+    if (!existing.contains('token')) {
+      await addColumn('ALTER TABLE usuario ADD COLUMN token TEXT');
+    }
+    if (!existing.contains('sistema_id')) {
+      await addColumn('ALTER TABLE usuario ADD COLUMN sistema_id TEXT');
+    }
+    if (!existing.contains('token_criado_em')) {
+      await addColumn('ALTER TABLE usuario ADD COLUMN token_criado_em TEXT');
+    }
+  }
+
   String _hashSenha(String senha) {
     return senha.trim();
   }
@@ -84,24 +147,39 @@ class DatabaseHelper {
     required String nome,
     required String email,
     required String senha,
+    String? sobrenome,
+    String? login,
+    String? token,
+    String? sistemaId,
   }) async {
     final db = await database;
 
     final nomeLimpo = nome.trim();
     final emailLimpo = email.trim().toLowerCase();
     final senhaHash = _hashSenha(senha);
+    final loginLimpo = (login ?? emailLimpo).trim();
+    final tokenCriadoEm = token != null ? DateTime.now().toIso8601String() : null;
 
     try {
       final id = await db.insert('usuario', {
         'nome': nomeLimpo,
+        'sobrenome': sobrenome?.trim(),
+        'login': loginLimpo,
         'email': emailLimpo,
         'senha_hash': senhaHash,
+        'token': token,
+        'token_criado_em': tokenCriadoEm,
+        'sistema_id': sistemaId,
       });
 
       return {
         'id_usuario': id,
         'nome': nomeLimpo,
+        'sobrenome': sobrenome?.trim(),
+        'login': loginLimpo,
         'email': emailLimpo,
+        'token': token,
+        'token_criado_em': tokenCriadoEm,
       };
     } on DatabaseException catch (e) {
       if (e.isUniqueConstraintError()) {
@@ -112,18 +190,130 @@ class DatabaseHelper {
   }
 
   Future<Map<String, dynamic>?> autenticarUsuario({
-    required String email,
+    String? email,
+    String? login,
     required String senha,
   }) async {
     final db = await database;
-    final emailLimpo = email.trim().toLowerCase();
     final senhaHash = _hashSenha(senha);
 
+    late List<Map<String, dynamic>> resultado;
+
+    if (email != null) {
+      final emailLimpo = email.trim().toLowerCase();
+      resultado = await db.query(
+        'usuario',
+        columns: ['id_usuario', 'nome', 'email', 'login', 'token'],
+        where: 'email = ? AND senha_hash = ?',
+        whereArgs: [emailLimpo, senhaHash],
+        limit: 1,
+      );
+    } else if (login != null) {
+      final loginLimpo = login.trim();
+      resultado = await db.query(
+        'usuario',
+        columns: ['id_usuario', 'nome', 'email', 'login', 'token'],
+        where: 'login = ? AND senha_hash = ?',
+        whereArgs: [loginLimpo, senhaHash],
+        limit: 1,
+      );
+    } else {
+      return null;
+    }
+
+    if (resultado.isEmpty) return null;
+    return resultado.first;
+  }
+
+  /// Salva ou atualiza o token de um usuário com timestamp
+  Future<void> salvarTokenUsuario({
+    required int idUsuario,
+    required String token,
+    String? sistemaId,
+  }) async {
+    final db = await database;
+    await db.update(
+      'usuario',
+      {
+        'token': token,
+        'token_criado_em': DateTime.now().toIso8601String(),
+        'atualizado_em': DateTime.now().toIso8601String()
+        if (sistemaId != null) 'sistema_id': sistemaId,
+      },
+      where: 'id_usuario = ?',
+      whereArgs: [idUsuario],
+    );
+  }
+
+  /// Verifica se o token de um usuário expirou (60 minutos)
+  Future<bool> tokenExpirou({required int idUsuario}) async {
+    final db = await database;
     final resultado = await db.query(
       'usuario',
-      columns: ['id_usuario', 'nome', 'email'],
-      where: 'email = ? AND senha_hash = ?',
-      whereArgs: [emailLimpo, senhaHash],
+      columns: ['token', 'token_criado_em', 'atualizado_em'],
+      where: 'id_usuario = ?',
+      whereArgs: [idUsuario],
+      limit: 1,
+    );
+
+    if (resultado.isEmpty) return true;
+
+    final row = resultado.first;
+    final token = row['token']?.toString();
+    if (token == null || token.isEmpty) return true;
+
+    final tokenCriadoEm = row['token_criado_em']?.toString() ?? row['atualizado_em']?.toString();
+    if (tokenCriadoEm == null || tokenCriadoEm.isEmpty) return false;
+
+    try {
+      final dataToken = DateTime.parse(tokenCriadoEm.toString());
+      final agora = DateTime.now();
+      final diferenca = agora.difference(dataToken);
+
+      // 60 minutos = 3600 segundos
+      return diferenca.inSeconds > 3600;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Limpa o token de um usuário
+  Future<void> limparToken({required int idUsuario}) async {
+    final db = await database;
+    await db.update(
+      'usuario',
+      {
+        'token': null,
+        'token_criado_em': null,
+        'atualizado_em': DateTime.now().toIso8601String()
+      },
+      where: 'id_usuario = ?',
+      whereArgs: [idUsuario],
+    );
+  }
+
+  /// Obtém o usuário pelo email
+  Future<Map<String, dynamic>?> obterUsuarioPorEmail(String email) async {
+    final db = await database;
+    final emailLimpo = email.trim().toLowerCase();
+    final resultado = await db.query(
+      'usuario',
+      where: 'email = ?',
+      whereArgs: [emailLimpo],
+      limit: 1,
+    );
+
+    if (resultado.isEmpty) return null;
+    return resultado.first;
+  }
+
+  /// Obtém o usuário pelo id
+  Future<Map<String, dynamic>?> obterUsuarioPorId(int idUsuario) async {
+    final db = await database;
+    final resultado = await db.query(
+      'usuario',
+      where: 'id_usuario = ?',
+      whereArgs: [idUsuario],
       limit: 1,
     );
 

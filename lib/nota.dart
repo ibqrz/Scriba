@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'chat.dart';
-import 'database_helper.dart';
+import 'package:scriba/chat.dart';
+import 'package:scriba/repositories/note_repository.dart';
 
 enum StatusSalvamento { inicial, salvando, salvo }
 
@@ -24,7 +24,8 @@ class NotaTela extends StatefulWidget {
   State<NotaTela> createState() => _NotaTelaState();
 }
 
-class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
+class _NotaTelaState extends State<NotaTela> {
+  final NoteRepository _noteRepository = NoteRepository();
   late TextEditingController _tituloController;
   late TextEditingController _conteudoController;
   late FocusNode _conteudoFocusNode;
@@ -113,50 +114,19 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
 
     if (titulo.isEmpty && conteudo.isNotEmpty) titulo = "Título da nota";
 
-    try {
-      if (_notaIdAtual == null) {
-        // cria nova nota e guarda o id retornado
-        final novoId = await DatabaseHelper.instance.inserirNota(
-          titulo: titulo,
-          conteudo: conteudo,
-          idUsuario: widget.idUsuario,
-        );
-        _notaIdAtual = novoId;
-      } else {
-        // atualiza nota existente
-        await DatabaseHelper.instance.atualizarNota(
-          idNota: _notaIdAtual!,
-          idUsuario: widget.idUsuario,
-          titulo: titulo,
-          conteudo: conteudo,
-        );
-      }
-
-      if (mounted) {
-        setState(() {
-          _statusSalvamento = StatusSalvamento.salvo;
-          _tituloOriginal = _tituloController.text;
-          _conteudoOriginal = _conteudoController.text;
-        });
-
-        if (encerrarTela) {
-          Navigator.pop(context, true);
-        }
-      }
-    } catch (e) {
-      debugPrint("Erro ao salvar: $e");
-    }
-  }
-
-  void _escutarMudancas() {
-    if (!_bloquearListener) {
-      final novoTexto = _conteudoController.text;
-      if (_historicoUndo.isEmpty || _historicoUndo.last != novoTexto) {
-        setState(() {
-          _historicoUndo.add(novoTexto);
-          _historicoRedo.clear();
-        });
-      }
+    if (widget.notaId == null) {
+      await _noteRepository.salvarNota(
+        titulo: titulo,
+        conteudo: conteudo,
+        idUsuario: widget.idUsuario,
+      );
+    } else {
+      await _noteRepository.salvarNota(
+        notaId: widget.notaId!,
+        idUsuario: widget.idUsuario,
+        titulo: titulo,
+        conteudo: conteudo,
+      );
     }
   }
 
@@ -213,9 +183,10 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              if (_notaIdAtual != null) {
-                await DatabaseHelper.instance.excluirNota(
-                  idNota: _notaIdAtual!,
+
+              if (widget.notaId != null) {
+                await _noteRepository.excluirNota(
+                  idNota: widget.notaId!,
                   idUsuario: widget.idUsuario,
                 );
               }
