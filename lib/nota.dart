@@ -21,7 +21,7 @@ class NotaTela extends StatefulWidget {
   State<NotaTela> createState() => _NotaTelaState();
 }
 
-class _NotaTelaState extends State<NotaTela> {
+class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
   final NoteRepository _noteRepository = NoteRepository();
   late TextEditingController _tituloController;
   late TextEditingController _conteudoController;
@@ -34,6 +34,7 @@ class _NotaTelaState extends State<NotaTela> {
   @override
   void initState() { 
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     
     String tituloInicial = widget.tituloNota;
     if (tituloInicial == "Título da nota" || tituloInicial.isEmpty) {
@@ -62,6 +63,7 @@ class _NotaTelaState extends State<NotaTela> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tituloController.dispose();
     _conteudoController.dispose();
     _conteudoFocusNode.dispose();
