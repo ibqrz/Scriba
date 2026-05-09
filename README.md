@@ -1,4 +1,4 @@
-# Scriba
+<p id="desc"></p>
 
 Aplicativo acadêmico de gerenciamento de notas desenvolvido em Flutter, com cadastro e login, persistência local em SQLite e integração com API remota de autenticação e inteligência artificial.
 
