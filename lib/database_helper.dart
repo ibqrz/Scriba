@@ -331,6 +331,16 @@ class DatabaseHelper {
     );
   }
 
+  Future<void> atualizarTimestamp(int idNota, int idUsuario) async {
+    final db = await database;
+    await db.update(
+      'nota',
+      {'atualizado_em': DateTime.now().toIso8601String()},
+      where: 'id_nota = ? AND id_usuario = ?',
+      whereArgs: [idNota, idUsuario],
+    );
+  }
+
   Future<int> inserirNota({
     required String titulo,
     required String conteudo,
@@ -341,6 +351,7 @@ class DatabaseHelper {
       'id_usuario': idUsuario,
       'titulo': titulo,
       'conteudo': conteudo,
+      'atualizado_em': DateTime.now().toIso8601String(),
     });
   }
 

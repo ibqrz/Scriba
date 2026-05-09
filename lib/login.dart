@@ -3,7 +3,6 @@ import 'package:scriba/home.dart';
 import 'package:scriba/helpers/form_validators.dart';
 import 'package:scriba/repositories/auth_repository.dart';
 
-
 class LoginTela extends StatefulWidget {
   const LoginTela({super.key});
 
@@ -18,6 +17,8 @@ class _LoginTelaState extends State<LoginTela> {
 
   bool _senhaEscondida = true;
   bool _carregando = false;
+
+  final Color corPrincipal = const Color.fromARGB(255, 49, 168, 156);
 
   @override
   void dispose() {
@@ -97,6 +98,9 @@ class _LoginTelaState extends State<LoginTela> {
     }
   }
 
+ 
+// ------------------------------------------------------------ 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,31 +134,45 @@ class _LoginTelaState extends State<LoginTela> {
             Center(
               child: TextField(
                 controller: _emailController,
+                cursorColor: corPrincipal, // muda a cor do cursor (o tracinho que pisca)
                 decoration: InputDecoration(
                   labelText: 'Digite seu e-mail',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  floatingLabelStyle: TextStyle(color: corPrincipal), // Cor do label quando sobe
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(width: 2.0),
+                    borderSide: const BorderSide(width: 2.0, color: Colors.black), // Borda normal
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(width: 2.0, color: corPrincipal), // Borda quando clica
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            
             Center(
               child: TextField(
                 controller: _senhaController,
-                obscureText: _senhaEscondida, 
+                obscureText: _senhaEscondida,
+                cursorColor: corPrincipal,
                 decoration: InputDecoration(
                   labelText: 'Digite sua senha',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  floatingLabelStyle: TextStyle(color: corPrincipal),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(width: 2.0),
+                    borderSide: const BorderSide(width: 2.0, color: Colors.black),
                   ),
-
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(width: 2.0, color: corPrincipal),
+                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _senhaEscondida ? Icons.visibility : Icons.visibility_off,
+                      _senhaEscondida
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       color: Colors.grey,
                     ),
                     onPressed: () {
@@ -166,8 +184,6 @@ class _LoginTelaState extends State<LoginTela> {
                 ),
               ),
             ),
-            
-
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -177,7 +193,7 @@ class _LoginTelaState extends State<LoginTela> {
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(80, 60),
-                      backgroundColor: const Color.fromARGB(255, 49, 168, 156),
+                      backgroundColor: corPrincipal,
                       foregroundColor: Colors.white,
                       side: const BorderSide(
                           color: Color.fromARGB(255, 28, 125, 115), width: 1),
