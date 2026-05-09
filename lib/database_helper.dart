@@ -232,14 +232,19 @@ class DatabaseHelper {
     String? sistemaId,
   }) async {
     final db = await database;
+    final valores = <String, Object?>{
+      'token': token,
+      'token_criado_em': DateTime.now().toIso8601String(),
+      'atualizado_em': DateTime.now().toIso8601String(),
+    };
+
+    if (sistemaId != null) {
+      valores['sistema_id'] = sistemaId;
+    }
+
     await db.update(
       'usuario',
-      {
-        'token': token,
-        'token_criado_em': DateTime.now().toIso8601String(),
-        'atualizado_em': DateTime.now().toIso8601String()
-        if (sistemaId != null) 'sistema_id': sistemaId,
-      },
+      valores,
       where: 'id_usuario = ?',
       whereArgs: [idUsuario],
     );
