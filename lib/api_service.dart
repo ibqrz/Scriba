@@ -6,18 +6,64 @@ class ApiService {
   // URLs das APIs
   static const String _authUrl = 'https://mobile-ios-login.zani0x03.eti.br/api';
   static const String _iaUrl = 'https://mobile-ios-ia.zani0x03.eti.br/api';
-  static const String _webProxyBaseUrl = 'http://localhost:8080';
+  static const String _webProxyFromEnv = String.fromEnvironment(
+    'SCRIBA_PROXY_BASE_URL',
+    defaultValue: '',
+  );
   static const String _sistemaId = '64b511cc-1392-4d37-85af-9c581961de40'; // ID do sistema fornecido pelo professor
 
   static String? _token;
+  static String? _cachedWebProxyBaseUrl;
 
-  static Uri _authEndpoint(String path) {
-    final baseUrl = kIsWeb ? '$_webProxyBaseUrl/proxy/auth' : _authUrl;
+  static Future<String> _resolveWebProxyBaseUrl() async {
+    if (!kIsWeb) return '';
+    if (_cachedWebProxyBaseUrl != null) {
+      return _cachedWebProxyBaseUrl!;
+    }
+
+    final List<String> candidates = [];
+    if (_webProxyFromEnv.trim().isNotEmpty) {
+      candidates.add(_webProxyFromEnv.trim());
+    }
+
+    final uriBase = Uri.base;
+    if (uriBase.hasAuthority && uriBase.host.isNotEmpty) {
+      candidates.add('${uriBase.scheme}://${uriBase.host}:8080');
+    }
+
+    candidates.add('http://localhost:8080');
+    candidates.add('http://127.0.0.1:8080');
+
+    for (final base in candidates.toSet()) {
+      try {
+        final response = await http
+            .get(Uri.parse('$base/health'))
+            .timeout(const Duration(seconds: 2));
+        if (response.statusCode == 200) {
+          _cachedWebProxyBaseUrl = base;
+          return base;
+        }
+      } catch (_) {
+        // Tenta o proximo endereco automaticamente.
+      }
+    }
+
+    _cachedWebProxyBaseUrl =
+        _webProxyFromEnv.trim().isNotEmpty ? _webProxyFromEnv.trim() : 'http://localhost:8080';
+    return _cachedWebProxyBaseUrl!;
+  }
+
+  static Future<Uri> _authEndpoint(String path) async {
+    final baseUrl = kIsWeb
+        ? '${await _resolveWebProxyBaseUrl()}/proxy/auth'
+        : _authUrl;
     return Uri.parse('$baseUrl$path');
   }
 
-  static Uri _iaEndpoint(String path) {
-    final baseUrl = kIsWeb ? '$_webProxyBaseUrl/proxy/ia' : _iaUrl;
+  static Future<Uri> _iaEndpoint(String path) async {
+    final baseUrl = kIsWeb
+        ? '${await _resolveWebProxyBaseUrl()}/proxy/ia'
+        : _iaUrl;
     return Uri.parse('$baseUrl$path');
   }
 
@@ -59,7 +105,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        _authEndpoint('/register'),
+        await _authEndpoint('/register'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -114,7 +160,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        _authEndpoint('/auth/login'),
+        await _authEndpoint('/auth/login'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -171,7 +217,7 @@ class ApiService {
 
     try {
       final response = await http.post(
-        _iaEndpoint('/ai/chat'),
+        await _iaEndpoint('/ai/chat'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',

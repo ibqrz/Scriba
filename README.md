@@ -208,6 +208,20 @@ flutter pub get
 flutter run -d chrome --web-port 1623
 ```
 
+### Rodar no navegador com proxy automatico (Windows)
+
+Em maquinas novas, use o script abaixo para subir o proxy local e o Flutter juntos:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\start_web_dev.ps1
+```
+
+Para usar outra porta web:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\start_web_dev.ps1 -WebPort 1623
+```
+
 ### Rodar no desktop Windows
 
 ```bash

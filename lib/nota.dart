@@ -26,6 +26,7 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
   late TextEditingController _tituloController;
   late TextEditingController _conteudoController;
   late FocusNode _conteudoFocusNode;
+  late VoidCallback _conteudoListener;
 
   final List<String> _historicoUndo = [];
   final List<String> _historicoRedo = [];
@@ -44,9 +45,13 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
     _tituloController = TextEditingController(text: tituloInicial);
     _conteudoController = TextEditingController(text: widget.textoNota);
     _conteudoFocusNode = FocusNode();
+    _conteudoListener = () {
+      if (!mounted) return;
+      _escutarMudancas();
+    };
     
     _historicoUndo.add(widget.textoNota);
-    _conteudoController.addListener(_escutarMudancas);
+    _conteudoController.addListener(_conteudoListener);
   }
 
   void _escutarMudancas() {
@@ -65,6 +70,7 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _tituloController.dispose();
+    _conteudoController.removeListener(_conteudoListener);
     _conteudoController.dispose();
     _conteudoFocusNode.dispose();
     super.dispose();
