@@ -36,9 +36,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // FUNÇÃO DE NAVEGAÇÃO COM GERENCIAMENTO DE TECLADO REFORÇADO
   void _irParaTela(Widget tela) async {
-    // Fecha o teclado antes de ir
     _focoBusca.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
 
@@ -47,7 +45,6 @@ class _HomePageState extends State<HomePage> {
       MaterialPageRoute(builder: (context) => tela),
     );
 
-    // Garante que o teclado não "ressuscite" ao voltar para a Home
     if (mounted) {
       _focoBusca.unfocus();
       FocusManager.instance.primaryFocus?.unfocus();
@@ -58,12 +55,38 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // MÉTODO ATUALIZADO COM O POPUP DE CONFIRMAÇÃO
   Future<void> _excluirNota(int idNota) async {
-    await DatabaseHelper.instance.excluirNota(
-      idNota: idNota,
-      idUsuario: widget.idUsuario,
-    );
-    await _carregarNotas();
+    // Exibe o diálogo de confirmação
+    bool confirmar = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Excluir Nota"),
+          content: const Text("Tem certeza que deseja excluir esta nota permanentemente?"), 
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text("CANCELAR", style: TextStyle(color: Color(0xFF31A89C)))
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF04332E)),
+              child: const Text("EXCLUIR", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+
+    // Só prossegue com a exclusão se o usuário confirmar
+    if (confirmar) {
+      await DatabaseHelper.instance.excluirNota(
+        idNota: idNota,
+        idUsuario: widget.idUsuario,
+      );
+      await _carregarNotas();
+    }
   }
 
   @override
@@ -76,7 +99,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> listaParaExibir;
 
-    // Lógica de Filtro
     if (textoBusca.isEmpty) {
       listaParaExibir = List.from(notas);
     } else {
@@ -105,7 +127,6 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      // Fecha o teclado automaticamente ao abrir o menu lateral
       onDrawerChanged: (isOpened) {
         if (isOpened) FocusManager.instance.primaryFocus?.unfocus();
       },
@@ -217,7 +238,6 @@ class _HomePageState extends State<HomePage> {
                   textoBusca = valor;
                 });
               },
-              // Fecha o teclado ao clicar na lupa/pesquisar do teclado
               onSubmitted: (valor) {
                 _focoBusca.unfocus();
               },
@@ -239,7 +259,14 @@ class _HomePageState extends State<HomePage> {
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              onPressed: () => _irParaTela(NotaTela(textoNota: "", tituloNota: "", notaId: null, idUsuario: widget.idUsuario)),
+              onPressed: () => _irParaTela(NotaTela(
+                textoNota: "", 
+                tituloNota: "", 
+                notaId: null, 
+                idUsuario: widget.idUsuario,
+                nomeAnexo: null,
+                caminhoAnexo: null,
+              )),
               child: const Text('NOVA NOTA'),
             ),
             const SizedBox(height: 20),
@@ -298,6 +325,8 @@ class _HomePageState extends State<HomePage> {
                             tituloNota: nota['titulo']?.toString() ?? "",
                             notaId: nota['id_nota'] as int,
                             idUsuario: widget.idUsuario,
+                            nomeAnexo: nota['nome_anexo']?.toString(),
+                            caminhoAnexo: nota['caminho_anexo']?.toString(),
                           ),
                         );
                       },
