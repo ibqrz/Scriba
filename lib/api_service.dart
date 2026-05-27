@@ -133,11 +133,21 @@ class ApiService {
         };
       }
 
-        final errorBody = _tryDecodeJson(response.body);
-        final rawBody = response.body.trim();
-        final message = errorBody is Map<String, dynamic>
+      final errorBody = _tryDecodeJson(response.body);
+      final rawBody = response.body.trim();
+      
+      String message;
+      if (response.statusCode == 409) {
+        message = 'Este usuário (email/login) já existe. Tente com outros dados.';
+      } else if (response.statusCode == 400) {
+        message = errorBody is Map<String, dynamic>
+          ? (errorBody['message']?.toString() ?? 'Dados inválidos. Verifique os campos.')
+          : 'Dados inválidos. Verifique os campos.';
+      } else {
+        message = errorBody is Map<String, dynamic>
           ? (errorBody['message']?.toString() ?? 'Erro ao registrar usuario')
           : (rawBody.isNotEmpty ? rawBody : 'Erro ao registrar usuario');
+      }
 
       return {
         'success': false,
@@ -205,8 +215,11 @@ class ApiService {
 
   /// Envia um prompt para a IA
   /// Requer token de autenticação
+  /// Agora aceita histórico e título para contexto adicional
   static Future<Map<String, dynamic>?> enviarPromptIa({
     required String prompt,
+    List<Map<String, dynamic>>? history,
+    String? titulo,
   }) async {
     if (_token == null) {
       return {
@@ -224,10 +237,12 @@ class ApiService {
         },
         body: jsonEncode({
           'prompt': prompt,
+          if (history != null) 'history': history,
+          if (titulo != null) 'titulo': titulo,
         }),
       ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw Exception('Timeout na requisição de chat'),
+        const Duration(seconds: 120),
+        onTimeout: () => throw Exception('Timeout na requisição de chat (120s)'),
       );
 
       if (response.statusCode == 200) {

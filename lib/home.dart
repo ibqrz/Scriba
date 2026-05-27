@@ -48,8 +48,14 @@ class _HomePageState extends State<HomePage> {
 
   /// Verifica se o token expirou
   Future<void> _verificarTokenEExpirado() async {
+    // Se não existe usuário local, não forçamos logout — a autenticação
+    // já foi validada pela API antes de chegar na Home. Apenas pulamos
+    // a verificação de token local.
+    final usuarioLocal = await DatabaseHelper.instance.obterUsuarioPorId(widget.idUsuario);
+    if (usuarioLocal == null) return;
+
     final expirou = await DatabaseHelper.instance.tokenExpirou(idUsuario: widget.idUsuario);
-    
+
     if (expirou) {
       // Limpar o token expirado
       await DatabaseHelper.instance.limparToken(idUsuario: widget.idUsuario);
@@ -77,6 +83,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _carregarNotas() async {
+    if (widget.idUsuario <= 0) {
+      if (!mounted) return;
+      setState(() {
+        notas = [];
+      });
+      return;
+    }
+
     final notasDoBanco = await _noteRepository.listarNotas(widget.idUsuario);
     if (!mounted) return;
     setState(() {

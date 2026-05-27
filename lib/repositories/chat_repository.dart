@@ -36,8 +36,31 @@ class ChatRepository {
     required String mensagemUsuario,
     required String tituloNota,
   }) async {
-    final resultadoApi = await ApiService.enviarPromptIa(prompt: mensagemUsuario);
+    // O `ChatTela` já adiciona a mensagem do usuário ao histórico local,
+    // então aqui apenas preparamos o histórico a ser enviado.
+    // Limita o histórico para as últimas 10 mensagens para reduzir payload.
+    final recent = conversa.messages.length > 10
+        ? conversa.messages.sublist(conversa.messages.length - 10)
+        : conversa.messages;
 
+    final historyPayload = recent
+        .map((m) => {
+              'role': m.isUser ? 'user' : 'assistant',
+              'content': m.text,
+            })
+        .toList();
+
+    print('[ChatRepository] Enviando prompt para IA. titulo: $tituloNota, prompt: $mensagemUsuario');
+
+    final resultadoApi = await ApiService.enviarPromptIa(
+      prompt: mensagemUsuario,
+      history: historyPayload,
+      titulo: tituloNota,
+    );
+
+    print('[ChatRepository] Resultado da API: $resultadoApi');
+
+    String respostaTexto;
     if (resultadoApi != null && resultadoApi['success'] == true) {
       final data = resultadoApi['data'];
       if (data is Map<String, dynamic>) {
@@ -48,16 +71,30 @@ class ChatRepository {
           data['text'],
         ];
 
+        String? encontrado;
         for (final campo in possiveisCampos) {
           if (campo != null && campo.toString().trim().isNotEmpty) {
-            return campo.toString();
+            encontrado = campo.toString();
+            break;
           }
         }
-      }
 
-      return 'Recebi sua mensagem sobre "$tituloNota" e já estou analisando.';
+        respostaTexto = encontrado ?? 'Recebi sua mensagem sobre "$tituloNota" e já estou analisando.';
+      } else if (resultadoApi['data'] is String) {
+        respostaTexto = resultadoApi['data'] as String;
+      } else {
+        respostaTexto = 'Recebi sua mensagem sobre "$tituloNota" e já estou analisando.';
+      }
+    } else {
+      final errorMsg = resultadoApi?['message'] ?? 'Erro desconhecido';
+      respostaTexto = "❌ Erro: $errorMsg";
+      print('[ChatRepository] Erro detalhado: $errorMsg');
     }
 
-    return "Entendi! Como posso ajudar com '$tituloNota'?";
+    // Adiciona a resposta da IA ao histórico local
+    conversa.messages.add(Message(text: respostaTexto, isUser: false));
+    conversa.lastUpdate = DateTime.now();
+
+    return respostaTexto;
   }
 }

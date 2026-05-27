@@ -7,8 +7,9 @@ Aplicativo acadêmico de gerenciamento de notas desenvolvido em Flutter, com cad
 O Scriba foi estruturado para permitir:
 
 - criar usuário local e remoto no mesmo fluxo;
-- fazer login com validação na API e persistência local;
-- armazenar token com validade de 60 minutos;
+- fazer login com validação local e, quando necessário, validação na API;
+- reaproveitar o token salvo localmente por até 24 horas sem chamar a API novamente;
+- armazenar token com validade de 24 horas;
 - criar, editar, listar e excluir notas por usuário;
 - acessar chat com IA usando `Bearer token`.
 
@@ -90,11 +91,11 @@ scriba/
 3. O cadastro faz duas ações:
 	 - cria o usuário na API remota;
 	 - grava o usuário no SQLite local.
-4. O login faz duas ações:
-	 - autentica na API remota;
-	 - grava/atualiza token e dados no SQLite local.
-5. A Home carrega as notas do usuário e verifica expiração do token.
-6. Se o token expirar, o app limpa o token e pede login novamente.
+4. O login primeiro tenta validar usuário e senha no banco local.
+5. Se existir token local ainda válido dentro de 24 horas, o app entra sem chamar a API.
+6. Se o token não existir ou já tiver expirado, o login chama a API remota, recebe um novo token e atualiza o SQLite local.
+7. A Home carrega as notas do usuário e verifica expiração do token.
+8. Se o token expirar, o app limpa o token e pede login novamente.
 
 ## Separação de Responsabilidades
 
@@ -186,7 +187,8 @@ O backend retorna, entre outros campos:
 
 ## Validação do Token
 
-- O token fica válido por 60 minutos.
+- O token fica válido por 24 horas.
+- O login pode ser concluído sem nova chamada à API se o token salvo localmente ainda estiver dentro desse prazo.
 - A Home verifica se o token expirou ao abrir.
 - Quando expira, o app:
 	- limpa o token do banco;
@@ -208,19 +210,23 @@ flutter pub get
 flutter run -d chrome --web-port 1623
 ```
 
-### Rodar no navegador com proxy automatico (Windows)
+### Rodar no navegador com proxy automático (modo dev)
 
-Em maquinas novas, use o script abaixo para subir o proxy local e o Flutter juntos:
+Agora usamos um runner Dart que inicia automaticamente o proxy e o Flutter Web. Duas formas:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tool\start_web_dev.ps1
-```
-
-Para usar outra porta web:
+- **VS Code (F5)** — já configurado: pressione `F5` (configuração "Scriba Dev (Proxy + Flutter Web)").
+- **Linha de comando** — execute:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tool\start_web_dev.ps1 -WebPort 1623
+dart run tool/dev_runner.dart
 ```
+
+O `dev_runner.dart` faz:
+- inicia `tool/api_proxy_server.dart` (proxy em `http://localhost:8080`)
+- espera o proxy responder `/health`
+- inicia `flutter run -d chrome` passando `--dart-define=SCRIBA_PROXY_BASE_URL=http://localhost:8080`
+
+Se preferir rodar o Flutter manualmente sem o proxy runner, use `flutter run -d chrome` e assegure que o proxy esteja disponível em `http://localhost:8080`.
 
 ### Rodar no desktop Windows
 

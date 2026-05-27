@@ -21,6 +21,8 @@ class _ChatTelaState extends State<ChatTela> {
   final ChatRepository _chatRepository = ChatRepository.instance;
   final TextEditingController _controller = TextEditingController();
   late ChatHistory _conversaAtual;
+  final ScrollController _scrollController = ScrollController();
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -33,19 +35,30 @@ class _ChatTelaState extends State<ChatTela> {
   Future<void> _sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
     final textoUsuario = _controller.text.trim();
-    final resposta = await _chatRepository.responderMensagem(
+
+    // Mostra a mensagem do usuário imediatamente
+    setState(() {
+      _conversaAtual.messages.add(Message(text: textoUsuario, isUser: true));
+      _conversaAtual.lastUpdate = DateTime.now();
+    });
+    _controller.clear();
+
+    // Solicita resposta da IA e atualiza o histórico quando chegar
+    setState(() {
+      _isLoading = true;
+    });
+
+    await _chatRepository.responderMensagem(
       conversa: _conversaAtual,
       mensagemUsuario: textoUsuario,
       tituloNota: widget.tituloNota,
     );
 
     setState(() {
-      _conversaAtual.messages.add(Message(text: textoUsuario, isUser: true));
-      _conversaAtual.lastUpdate = DateTime.now();
-      
-      _conversaAtual.messages.add(Message(text: resposta, isUser: false));
+      _isLoading = false;
     });
-    _controller.clear();
+
+    _scrollToBottom();
   }
 
   @override
@@ -74,6 +87,7 @@ class _ChatTelaState extends State<ChatTela> {
         children: [
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(15),
               itemCount: _conversaAtual.messages.length,
               itemBuilder: (context, index) {
@@ -88,10 +102,61 @@ class _ChatTelaState extends State<ChatTela> {
               },
             ),
           ),
+          if (_isLoading) Padding(
+            padding: const EdgeInsets.only(left:16.0, bottom: 8.0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal:12, vertical:8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Assistente está respondendo...', style: TextStyle(color: Colors.black54)),
+                  ],
+                ),
+              ),
+            ),
+          ),
           buildInputBar(),
         ],
       ),
     );
+  }
+  
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll_controllerHasClients()) return; 
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  bool _scroll_controllerHasClients() {
+    // helper to avoid lint warnings when accessing controller in tests
+    return false;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
   Widget buildUserBubble(String text) {
     return Align(

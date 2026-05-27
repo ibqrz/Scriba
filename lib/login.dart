@@ -68,18 +68,25 @@ class _LoginTelaState extends State<LoginTela> {
       final usuarioFinal = resultado['user'] as Map<String, dynamic>?;
 
       if (usuarioFinal == null) {
+        // API autenticou, mas não há usuário persistido localmente.
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao processar login.')),
+          const SnackBar(
+            content: Text('Login confirmado pela API, porém falha ao salvar usuário localmente. Algumas funcionalidades locais podem estar indisponíveis.'),
+            duration: Duration(seconds: 4),
+          ),
         );
-        return;
       }
+
+      final int idParaNavegar = usuarioFinal != null && usuarioFinal['id_usuario'] is int
+          ? usuarioFinal['id_usuario'] as int
+          : -1;
 
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
           builder: (context) => HomePage(
-            idUsuario: usuarioFinal['id_usuario'] as int,
-            nomeUsuario: usuarioFinal['nome']?.toString(),
+            idUsuario: idParaNavegar,
+            nomeUsuario: usuarioFinal?['nome']?.toString(),
           ),
         ),
         (route) => false,
@@ -134,9 +141,9 @@ class _LoginTelaState extends State<LoginTela> {
             Center(
               child: TextField(
                 controller: _emailController,
-                cursorColor: corPrincipal, // muda a cor do cursor (o tracinho que pisca)
+                cursorColor: corPrincipal,
                 decoration: InputDecoration(
-                  labelText: 'Digite seu e-mail',
+                  labelText: 'Digite seu usuário ou e-mail',
                   labelStyle: const TextStyle(color: Colors.grey),
                   floatingLabelStyle: TextStyle(color: corPrincipal), // Cor do label quando sobe
                   enabledBorder: OutlineInputBorder(
