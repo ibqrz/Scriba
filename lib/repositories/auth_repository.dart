@@ -136,6 +136,8 @@ class AuthRepository {
   }) async {
     debugPrint('🔐 [AUTH] Iniciando login para: $username');
     Map<String, dynamic>? usuario;
+    String? token; // <--- DECLARADO AQUI NO ESCOPO CORRETO DO MÉTODO
+
     try {
       debugPrint('💾 [AUTH] Validando credenciais localmente por email: $username');
       usuario = await DatabaseHelper.instance.autenticarUsuario(email: username, senha: senha);
@@ -203,7 +205,7 @@ class AuthRepository {
       debugPrint('   🔑 Token obtido: ${resultadoApi['token']?.toString().substring(0, 20)}...');
 
       // A API confirmou o login — a partir daqui o usuário está autenticado.
-      final token = resultadoApi['token']?.toString();
+      token = resultadoApi['token']?.toString(); // <--- REMOVIDO O 'FINAL'
 
       if (usuario == null && resultadoApi['data'] is Map) {
         final apiData = resultadoApi['data'] as Map<String, dynamic>;
@@ -237,7 +239,7 @@ class AuthRepository {
       // Não interromper o fluxo de login se a persistência local falhar.
     }
 
-    ApiService.setToken(token);
+    ApiService.setToken(token); // <--- AGORA ESTA VARIÁVEL É RECONHECIDA AQUI!
     debugPrint('🎉 [AUTH] Login finalizado com sucesso!');
     debugPrint('   ✓ Autenticação pela API confirmada');
     debugPrint('   ✓ Usuário (ID=${usuario?['id_usuario']}, Email=${usuario?['email']}) carregado localmente');
