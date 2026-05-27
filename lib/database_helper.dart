@@ -250,7 +250,7 @@ class DatabaseHelper {
     );
   }
 
-  /// Verifica se o token de um usuário expirou (60 minutos)
+  /// Verifica se o token de um usuário expirou (24 horas)
   Future<bool> tokenExpirou({required int idUsuario}) async {
     final db = await database;
     final resultado = await db.query(
@@ -275,8 +275,7 @@ class DatabaseHelper {
       final agora = DateTime.now();
       final diferenca = agora.difference(dataToken);
 
-      // 60 minutos = 3600 segundos
-      return diferenca.inSeconds > 3600;
+      return diferenca > const Duration(hours: 24);
     } catch (_) {
       return true;
     }
@@ -358,6 +357,36 @@ class DatabaseHelper {
       'conteudo': conteudo,
       'atualizado_em': DateTime.now().toIso8601String(),
     });
+  }
+
+  /// Registra tentativas onde o registro remoto ocorreu, mas a gravação local falhou.
+  /// Isso ajuda a identificar registros órfãos que precisam de limpeza manual.
+  Future<void> salvarOrphanRemote({
+    required String login,
+    required String email,
+    String? reason,
+  }) async {
+    final db = await database;
+    try {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS orphan_remote (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          login TEXT,
+          email TEXT,
+          reason TEXT,
+          created_at TEXT
+        )
+      ''');
+
+      await db.insert('orphan_remote', {
+        'login': login,
+        'email': email,
+        'reason': reason,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {
+      // Não fazer nada — apenas tentar registrar para auditoria local.
+    }
   }
 
   Future<int> atualizarNota({

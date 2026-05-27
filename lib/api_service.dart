@@ -6,18 +6,64 @@ class ApiService {
   // URLs das APIs
   static const String _authUrl = 'https://mobile-ios-login.zani0x03.eti.br/api';
   static const String _iaUrl = 'https://mobile-ios-ia.zani0x03.eti.br/api';
-  static const String _webProxyBaseUrl = 'http://localhost:8080';
+  static const String _webProxyFromEnv = String.fromEnvironment(
+    'SCRIBA_PROXY_BASE_URL',
+    defaultValue: '',
+  );
   static const String _sistemaId = '64b511cc-1392-4d37-85af-9c581961de40'; // ID do sistema fornecido pelo professor
 
   static String? _token;
+  static String? _cachedWebProxyBaseUrl;
 
-  static Uri _authEndpoint(String path) {
-    final baseUrl = kIsWeb ? '$_webProxyBaseUrl/proxy/auth' : _authUrl;
+  static Future<String> _resolveWebProxyBaseUrl() async {
+    if (!kIsWeb) return '';
+    if (_cachedWebProxyBaseUrl != null) {
+      return _cachedWebProxyBaseUrl!;
+    }
+
+    final List<String> candidates = [];
+    if (_webProxyFromEnv.trim().isNotEmpty) {
+      candidates.add(_webProxyFromEnv.trim());
+    }
+
+    final uriBase = Uri.base;
+    if (uriBase.hasAuthority && uriBase.host.isNotEmpty) {
+      candidates.add('${uriBase.scheme}://${uriBase.host}:8080');
+    }
+
+    candidates.add('http://localhost:8080');
+    candidates.add('http://127.0.0.1:8080');
+
+    for (final base in candidates.toSet()) {
+      try {
+        final response = await http
+            .get(Uri.parse('$base/health'))
+            .timeout(const Duration(seconds: 2));
+        if (response.statusCode == 200) {
+          _cachedWebProxyBaseUrl = base;
+          return base;
+        }
+      } catch (_) {
+        // Tenta o proximo endereco automaticamente.
+      }
+    }
+
+    _cachedWebProxyBaseUrl =
+        _webProxyFromEnv.trim().isNotEmpty ? _webProxyFromEnv.trim() : 'http://localhost:8080';
+    return _cachedWebProxyBaseUrl!;
+  }
+
+  static Future<Uri> _authEndpoint(String path) async {
+    final baseUrl = kIsWeb
+        ? '${await _resolveWebProxyBaseUrl()}/proxy/auth'
+        : _authUrl;
     return Uri.parse('$baseUrl$path');
   }
 
-  static Uri _iaEndpoint(String path) {
-    final baseUrl = kIsWeb ? '$_webProxyBaseUrl/proxy/ia' : _iaUrl;
+  static Future<Uri> _iaEndpoint(String path) async {
+    final baseUrl = kIsWeb
+        ? '${await _resolveWebProxyBaseUrl()}/proxy/ia'
+        : _iaUrl;
     return Uri.parse('$baseUrl$path');
   }
 
@@ -59,7 +105,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        _authEndpoint('/register'),
+        await _authEndpoint('/register'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -87,11 +133,21 @@ class ApiService {
         };
       }
 
-        final errorBody = _tryDecodeJson(response.body);
-        final rawBody = response.body.trim();
-        final message = errorBody is Map<String, dynamic>
+      final errorBody = _tryDecodeJson(response.body);
+      final rawBody = response.body.trim();
+      
+      String message;
+      if (response.statusCode == 409) {
+        message = 'Este usuário (email/login) já existe. Tente com outros dados.';
+      } else if (response.statusCode == 400) {
+        message = errorBody is Map<String, dynamic>
+          ? (errorBody['message']?.toString() ?? 'Dados inválidos. Verifique os campos.')
+          : 'Dados inválidos. Verifique os campos.';
+      } else {
+        message = errorBody is Map<String, dynamic>
           ? (errorBody['message']?.toString() ?? 'Erro ao registrar usuario')
           : (rawBody.isNotEmpty ? rawBody : 'Erro ao registrar usuario');
+      }
 
       return {
         'success': false,
@@ -114,7 +170,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        _authEndpoint('/auth/login'),
+        await _authEndpoint('/auth/login'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -159,8 +215,11 @@ class ApiService {
 
   /// Envia um prompt para a IA
   /// Requer token de autenticação
+  /// Agora aceita histórico e título para contexto adicional
   static Future<Map<String, dynamic>?> enviarPromptIa({
     required String prompt,
+    List<Map<String, dynamic>>? history,
+    String? titulo,
   }) async {
     if (_token == null) {
       return {
@@ -171,17 +230,19 @@ class ApiService {
 
     try {
       final response = await http.post(
-        _iaEndpoint('/ai/chat'),
+        await _iaEndpoint('/ai/chat'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
         },
         body: jsonEncode({
           'prompt': prompt,
+          if (history != null) 'history': history,
+          if (titulo != null) 'titulo': titulo,
         }),
       ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw Exception('Timeout na requisição de chat'),
+        const Duration(seconds: 120),
+        onTimeout: () => throw Exception('Timeout na requisição de chat (120s)'),
       );
 
       if (response.statusCode == 200) {

@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Scriba Dev (Proxy + Flutter Web)",
+      "type": "dart",
+      "request": "launch",
+      "program": "tool/dev_runner.dart",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "preLaunchTask": "start-dev-runner"
+    }
+  ]
+}
