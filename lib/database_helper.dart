@@ -5,7 +5,6 @@ import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 class DatabaseHelper {
   DatabaseHelper._internal();
-
   static final DatabaseHelper instance = DatabaseHelper._internal();
 
   static const String _dbName = 'scriba.db';
@@ -16,15 +15,9 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-
     await _configureDatabaseFactory();
-
     final databasesPath = await getDatabasesPath();
     final path = p.join(databasesPath, _dbName);
-
-    if (kDebugMode) {
-      debugPrint('SQLite DB path: $path');
-    }
 
     _database = await openDatabase(
       path,
@@ -43,6 +36,7 @@ class DatabaseHelper {
             senha_hash TEXT NOT NULL,
             token TEXT,
             sistema_id TEXT,
+            token_criado_em TEXT,
             criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
           )
@@ -54,6 +48,8 @@ class DatabaseHelper {
             id_usuario INTEGER NOT NULL,
             titulo TEXT NOT NULL,
             conteudo TEXT NOT NULL,
+            nome_anexo TEXT,
+            caminho_anexo TEXT,
             criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             deletado_em TEXT,
@@ -63,26 +59,29 @@ class DatabaseHelper {
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
-          // Migração de v1 para v2: adicionar novos campos
+          // Migração para v2: Garante anexos nas notas e novos campos no usuário
+          try {
+            await db.execute('ALTER TABLE nota ADD COLUMN nome_anexo TEXT');
+          } catch (_) {}
+          try {
+            await db.execute('ALTER TABLE nota ADD COLUMN caminho_anexo TEXT');
+          } catch (_) {}
           try {
             await db.execute('ALTER TABLE usuario ADD COLUMN sobrenome TEXT');
           } catch (_) {}
-          
           try {
             await db.execute('ALTER TABLE usuario ADD COLUMN login TEXT NOT NULL UNIQUE DEFAULT ""');
           } catch (_) {}
-          
           try {
             await db.execute('ALTER TABLE usuario ADD COLUMN token TEXT');
           } catch (_) {}
-          
           try {
             await db.execute('ALTER TABLE usuario ADD COLUMN sistema_id TEXT');
           } catch (_) {}
         }
         
         if (oldVersion < 3) {
-          // Migração de v2 para v3: adicionar campo de timestamp do token
+          // Migração para v3: Adiciona timestamp do token
           try {
             await db.execute('ALTER TABLE usuario ADD COLUMN token_criado_em TEXT');
           } catch (_) {}
@@ -97,15 +96,12 @@ class DatabaseHelper {
 
   Future<void> _configureDatabaseFactory() async {
     if (_factoryConfigured) return;
-
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
-    } else if (defaultTargetPlatform == TargetPlatform.windows ||
-        defaultTargetPlatform == TargetPlatform.linux) {
+    } else if (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.linux) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
-
     _factoryConfigured = true;
   }
 
@@ -225,7 +221,6 @@ class DatabaseHelper {
     return resultado.first;
   }
 
-  /// Salva ou atualiza o token de um usuário com timestamp
   Future<void> salvarTokenUsuario({
     required int idUsuario,
     required String token,
@@ -250,7 +245,6 @@ class DatabaseHelper {
     );
   }
 
-  /// Verifica se o token de um usuário expirou (24 horas)
   Future<bool> tokenExpirou({required int idUsuario}) async {
     final db = await database;
     final resultado = await db.query(
@@ -281,7 +275,6 @@ class DatabaseHelper {
     }
   }
 
-  /// Limpa o token de um usuário
   Future<void> limparToken({required int idUsuario}) async {
     final db = await database;
     await db.update(
@@ -296,7 +289,6 @@ class DatabaseHelper {
     );
   }
 
-  /// Obtém o usuário pelo email
   Future<Map<String, dynamic>?> obterUsuarioPorEmail(String email) async {
     final db = await database;
     final emailLimpo = email.trim().toLowerCase();
@@ -311,7 +303,6 @@ class DatabaseHelper {
     return resultado.first;
   }
 
-  /// Obtém o usuário pelo id
   Future<Map<String, dynamic>?> obterUsuarioPorId(int idUsuario) async {
     final db = await database;
     final resultado = await db.query(
@@ -349,18 +340,20 @@ class DatabaseHelper {
     required String titulo,
     required String conteudo,
     required int idUsuario,
+    String? nomeAnexo,
+    String? caminhoAnexo,
   }) async {
     final db = await database;
     return db.insert('nota', {
       'id_usuario': idUsuario,
       'titulo': titulo,
       'conteudo': conteudo,
+      'nome_anexo': nomeAnexo,
+      'caminho_anexo': caminhoAnexo,
       'atualizado_em': DateTime.now().toIso8601String(),
     });
   }
 
-  /// Registra tentativas onde o registro remoto ocorreu, mas a gravação local falhou.
-  /// Isso ajuda a identificar registros órfãos que precisam de limpeza manual.
   Future<void> salvarOrphanRemote({
     required String login,
     required String email,
@@ -384,9 +377,7 @@ class DatabaseHelper {
         'reason': reason,
         'created_at': DateTime.now().toIso8601String(),
       });
-    } catch (_) {
-      // Não fazer nada — apenas tentar registrar para auditoria local.
-    }
+    } catch (_) {}
   }
 
   Future<int> atualizarNota({
@@ -394,6 +385,8 @@ class DatabaseHelper {
     required int idUsuario,
     required String titulo,
     required String conteudo,
+    String? nomeAnexo,
+    String? caminhoAnexo,
   }) async {
     final db = await database;
     return db.update(
@@ -401,22 +394,21 @@ class DatabaseHelper {
       {
         'titulo': titulo,
         'conteudo': conteudo,
+        'nome_anexo': nomeAnexo,
+        'caminho_anexo': caminhoAnexo,
         'atualizado_em': DateTime.now().toIso8601String(),
       },
-      where: 'id_nota = ? AND id_usuario = ? AND deletado_em IS NULL',
+      where: 'id_nota = ? AND id_usuario = ?',
       whereArgs: [idNota, idUsuario],
     );
   }
 
-  Future<int> excluirNota({
-    required int idNota,
-    required int idUsuario,
-  }) async {
+  Future<int> excluirNota({required int idNota, required int idUsuario}) async {
     final db = await database;
     return db.update(
       'nota',
       {'deletado_em': DateTime.now().toIso8601String()},
-      where: 'id_nota = ? AND id_usuario = ? AND deletado_em IS NULL',
+      where: 'id_nota = ? AND id_usuario = ?',
       whereArgs: [idNota, idUsuario],
     );
   }

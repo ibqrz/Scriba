@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:open_filex/open_filex.dart'; 
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:scriba/chat.dart';
 import 'package:scriba/repositories/note_repository.dart';
 
@@ -13,12 +17,16 @@ class NotaTela extends StatefulWidget {
     required this.tituloNota,
     required this.idUsuario,
     this.notaId,
+    this.nomeAnexo,
+    this.caminhoAnexo,
   });
 
   final String textoNota;
   final String tituloNota;
   final int idUsuario;
   final int? notaId;
+  final String? nomeAnexo;
+  final String? caminhoAnexo;
 
   @override
   State<NotaTela> createState() => _NotaTelaState();
@@ -34,9 +42,11 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
   final List<String> _historicoUndo = [];
   final List<String> _historicoRedo = [];
   bool _bloquearListener = false;
+  bool _estaCarregando = false;
 
-  // controlar o id da nota caso ela seja criada durante o auto-salvamento
   int? _notaIdAtual;
+  String? _nomeArquivoAnexado;
+  String? _caminhoArquivoAnexado;
   
   StatusSalvamento _statusSalvamento = StatusSalvamento.inicial;
   Timer? _debounce;
@@ -49,14 +59,16 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     
     _notaIdAtual = widget.notaId;
-    _tituloOriginal = widget.tituloNota == "Título da nota" || widget.tituloNota.isEmpty 
-        ? "" 
-        : widget.tituloNota;
+    _tituloOriginal = widget.tituloNota;
     _conteudoOriginal = widget.textoNota;
 
     _tituloController = TextEditingController(text: _tituloOriginal);
     _conteudoController = TextEditingController(text: _conteudoOriginal);
     _conteudoFocusNode = FocusNode();
+
+    _nomeArquivoAnexado = widget.nomeAnexo;
+    _caminhoArquivoAnexado = widget.caminhoAnexo;
+
     _conteudoListener = () {
       if (!mounted) return;
       _escutarMudancas();
@@ -72,6 +84,7 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _debounce?.cancel();
     _tituloController.dispose();
     _conteudoController.removeListener(_conteudoListener);
     _conteudoController.dispose();
@@ -79,31 +92,185 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // detecta qnd minimiza ou fecha o app
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _salvarNoBanco(encerrarTela: false);
+  // --- Popups de Confirmação Padronizados ---
+  
+  void _confirmarExcluirAnexo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Remover anexo?"),
+        content: const Text("O arquivo será desvinculado desta nota."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text("CANCELAR", style: TextStyle(color: Color(0xFF31A89C)))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF04332E)),
+            onPressed: () {
+              setState(() { 
+                _nomeArquivoAnexado = null; 
+                _caminhoArquivoAnexado = null; 
+              });
+              _salvarNoBanco(encerrarTela: false);
+              Navigator.pop(context);
+            },
+            child: const Text("REMOVER", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmarExclusaoNota() {
+    final rootNavigator = Navigator.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Excluir nota?"),
+        content: const Text("Essa ação removerá a nota permanentemente."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text("CANCELAR", style: TextStyle(color: Color(0xFF31A89C)))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF04332E)),
+            onPressed: () async {
+              Navigator.pop(context); // Fecha o dialog
+              if (_notaIdAtual != null) {
+                await _noteRepository.excluirNota(
+                  idNota: _notaIdAtual!, 
+                  idUsuario: widget.idUsuario,
+                );
+              }
+              if (!mounted) return;
+              rootNavigator.pop(true); // Sai da tela retornando true para recarregar a home
+            },
+            child: const Text("EXCLUIR", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmarAnexo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Anexar Arquivo"),
+        content: const Text("Deseja anexar um arquivo a esta nota?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text("CANCELAR", style: TextStyle(color: Color(0xFF31A89C)))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF04332E)),
+            onPressed: () { 
+              Navigator.pop(context); 
+              _importarArquivoParaAnexo(); 
+            },
+            child: const Text("ANEXAR", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmarImportacaoConteudo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Importar Conteúdo"),
+        content: const Text("Deseja importar o texto de um arquivo para esta nota?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text("CANCELAR", style: TextStyle(color: Color(0xFF31A89C)))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF04332E)),
+            onPressed: () { 
+              Navigator.pop(context); 
+              _importarConteudoDeArquivo(); 
+            },
+            child: const Text("IMPORTAR", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Lógicas de Arquivo ---
+
+  Future<void> _importarArquivoParaAnexo() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.any);
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          _nomeArquivoAnexado = result.files.single.name;
+          _caminhoArquivoAnexado = result.files.single.path;
+        });
+        _salvarNoBanco(encerrarTela: false);
+      }
+    } catch (e) { debugPrint("Erro anexo: $e"); }
+  }
+
+  Future<void> _importarConteudoDeArquivo() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'txt', 'md'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        setState(() => _estaCarregando = true);
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        String textoExtraido = "";
+        final extensao = result.files.single.extension?.toLowerCase();
+
+        if (extensao == 'pdf') {
+          final File file = File(result.files.single.path!);
+          final PdfDocument document = PdfDocument(inputBytes: await file.readAsBytes());
+          textoExtraido = PdfTextExtractor(document).extractText();
+          document.dispose();
+        } else {
+          final File file = File(result.files.single.path!);
+          textoExtraido = await file.readAsString();
+        }
+
+        if (textoExtraido.trim().isNotEmpty) {
+          setState(() {
+            _conteudoController.text += "\n\n$textoExtraido";
+            _estaCarregando = false;
+          });
+          _salvarNoBanco(encerrarTela: false);
+        } else { 
+          setState(() => _estaCarregando = false); 
+        }
+      }
+    } catch (e) {
+      setState(() => _estaCarregando = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Erro ao ler arquivo.")));
+      }
     }
   }
 
+  Future<void> _abrirArquivoAnexo() async {
+    if (_caminhoArquivoAnexado != null) await OpenFilex.open(_caminhoArquivoAnexado!);
+  }
+
+  // --- Sistema de Salvamento e Histórico ---
+
   void _monitorarDigitacao() {
     if (_bloquearListener) return;
-
-    final tituloAtual = _tituloController.text;
-    final conteudoAtual = _conteudoController.text;
-
-    if (tituloAtual != _tituloOriginal || conteudoAtual != _conteudoOriginal) {
-      if (_statusSalvamento != StatusSalvamento.salvando) {
-        setState(() {
-          _statusSalvamento = StatusSalvamento.salvando;
-        });
-      }
-
-      if (_debounce?.isActive ?? false) _debounce!.cancel();
-      _debounce = Timer(const Duration(milliseconds: 1000), () {
-        _salvarNoBanco(encerrarTela: false);
-      });
+    if (_tituloController.text != _tituloOriginal || _conteudoController.text != _conteudoOriginal) {
+      setState(() => _statusSalvamento = StatusSalvamento.salvando);
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: 1000), () => _salvarNoBanco(encerrarTela: false));
     }
   }
 
@@ -111,24 +278,22 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
     debugPrint('[NOTA] _salvarNoBanco called encerrarTela=$encerrarTela notaIdAtual=$_notaIdAtual');
     String titulo = _tituloController.text.trim();
     String conteudo = _conteudoController.text.trim();
-
-    // se tudo estiver vazio não salva nada
+    
     if (titulo.isEmpty && conteudo.isEmpty) {
       if (encerrarTela && mounted) Navigator.pop(context, false);
       return;
     }
+    if (titulo.isEmpty) titulo = "Título da nota";
 
-    if (titulo.isEmpty && conteudo.isNotEmpty) titulo = "Título da nota";
-
-    // Evita que listeners de texto disparem durante o processo de salvar
     _bloquearListener = true;
     try {
       if (_notaIdAtual == null) {
-        // Insere e captura o id criado para evitar múltiplos inserts
         final insertedId = await _noteRepository.salvarNota(
           titulo: titulo,
           conteudo: conteudo,
           idUsuario: widget.idUsuario,
+          nomeAnexo: _nomeArquivoAnexado,
+          caminhoAnexo: _caminhoArquivoAnexado,
         );
         if (insertedId != 0) {
           _notaIdAtual = insertedId;
@@ -139,26 +304,23 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
           idUsuario: widget.idUsuario,
           titulo: titulo,
           conteudo: conteudo,
+          nomeAnexo: _nomeArquivoAnexado,
+          caminhoAnexo: _caminhoArquivoAnexado,
         );
       }
 
-      // Atualiza status para salvo
       if (mounted) {
         setState(() {
           _statusSalvamento = StatusSalvamento.salvo;
         });
       }
 
-      // Após salvar no banco, se a chamada pedir para encerrar a tela,
-      // fechamos retornando `true` para sinalizar à Home que deve recarregar.
       if (encerrarTela && mounted) {
         debugPrint('[NOTA] salvamento concluído - pop retornando true');
-        try {
-          Navigator.pop(context, true);
-        } catch (e, st) {
-          debugPrint('[NOTA] erro ao dar pop: $e\n$st');
-        }
+        Navigator.pop(context, true);
       }
+    } catch (e, st) { 
+      debugPrint("Erro ao salvar nota: $e\n$st"); 
     } finally {
       _bloquearListener = false;
     }
@@ -179,9 +341,9 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
     if (!_bloquearListener) {
       final novoTexto = _conteudoController.text;
       if (_historicoUndo.isEmpty || _historicoUndo.last != novoTexto) {
-        setState(() {
-          _historicoUndo.add(novoTexto);
-          _historicoRedo.clear();
+        setState(() { 
+          _historicoUndo.add(novoTexto); 
+          _historicoRedo.clear(); 
         });
       }
     }
@@ -194,9 +356,7 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
         String atual = _historicoUndo.removeLast();
         _historicoRedo.add(atual);
         _conteudoController.text = _historicoUndo.last;
-        _conteudoController.selection = TextSelection.fromPosition(
-          TextPosition(offset: _conteudoController.text.length),
-        );
+        _conteudoController.selection = TextSelection.fromPosition(TextPosition(offset: _conteudoController.text.length));
         _bloquearListener = false;
       });
     }
@@ -209,228 +369,14 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
         String recuperado = _historicoRedo.removeLast();
         _historicoUndo.add(recuperado);
         _conteudoController.text = recuperado;
-        _conteudoController.selection = TextSelection.fromPosition(
-          TextPosition(offset: _conteudoController.text.length),
-        );
+        _conteudoController.selection = TextSelection.fromPosition(TextPosition(offset: _conteudoController.text.length));
         _bloquearListener = false;
       });
     }
   }
 
-  void _confirmarExclusao() {
-    final rootNavigator = Navigator.of(context);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Excluir nota?"),
-        content: const Text("Essa ação removerá a nota permanentemente."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-
-              if (widget.notaId != null) {
-                await _noteRepository.excluirNota(
-                  idNota: widget.notaId!,
-                  idUsuario: widget.idUsuario,
-                );
-              }
-              if (!mounted) return;
-              rootNavigator.pop(true);
-            },
-            child: const Text("Excluir", style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _simularImportacaoArquivo() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Importar Arquivo"),
-        content: const Text("Selecione um arquivo .txt ou .md para importar o conteúdo."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Buscando arquivos... (Em desenvolvimento)")),
-              );
-            },
-            child: const Text("Selecionar"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // Handle pop manually: close immediately and save in background.
-        _fecharComSalvar();
-        return false; // we already popped inside _fecharComSalvar
-      },
-      child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: const SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-          statusBarBrightness: Brightness.light,
-        ),
-        child: Scaffold(
-          backgroundColor: Colors.white,
-          body: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_circle_left_outlined, color: Colors.grey, size: 30),
-                            onPressed: _fecharComSalvar,
-                          ),
-                          Expanded(
-                            child: TextField(
-                              controller: _tituloController,
-                              decoration: const InputDecoration(
-                                hintText: "Título da nota",
-                                border: InputBorder.none,
-                                hintStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black54),
-                              ),
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.get_app_rounded, color: Colors.black54),
-                            onPressed: _simularImportacaoArquivo,
-                          ),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, color: Colors.black54),
-                            onSelected: (value) {
-                              switch (value) {
-                                case 'chat':
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => ChatTela(
-                                    textoNota: _conteudoController.text,
-                                    tituloNota: _tituloController.text,
-                                  )));
-                                  break;
-                                case 'copiar':
-                                  Clipboard.setData(ClipboardData(text: _conteudoController.text));
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Texto copiado!")));
-                                  break;
-                                case 'excluir':
-                                  _confirmarExclusao();
-                                  break;
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: 'chat',
-                                child: ListTile(
-                                  leading: Icon(Icons.add_comment_outlined, color: Colors.blueAccent, size: 20),
-                                  title: Text("Conversar com Chat"),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                              const PopupMenuItem(
-                                value: 'copiar',
-                                child: ListTile(
-                                  leading: Icon(Icons.copy, size: 20),
-                                  title: Text("Copiar tudo"),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                              const PopupMenuDivider(),
-                              const PopupMenuItem(
-                                value: 'excluir',
-                                child: ListTile(
-                                  leading: Icon(Icons.delete, size: 20, color: Colors.red),
-                                  title: Text("Excluir nota", style: TextStyle(color: Colors.red)),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const Divider(color: Colors.black45, thickness: 1, indent: 10, endIndent: 10),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: TextField(
-                      controller: _conteudoController,
-                      focusNode: _conteudoFocusNode,
-                      maxLines: null,
-                      keyboardType: TextInputType.multiline,
-                      decoration: const InputDecoration(
-                        hintText: "Comece a escrever...",
-                        border: InputBorder.none,
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Container(
-                    height: 55,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF04332E),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: _buildStatusIcon(),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.white),
-                          onPressed: () => _conteudoFocusNode.requestFocus(),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.cleaning_services_rounded, color: Colors.white),
-                          onPressed: () {
-                            setState(() {
-                               _conteudoController.clear();
-                            });
-                          },
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: Icon(Icons.undo_rounded, color: _historicoUndo.length > 1 ? Colors.white : Colors.white24),
-                          onPressed: _historicoUndo.length > 1 ? _desfazer : null,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.redo_rounded, color: _historicoRedo.isNotEmpty ? Colors.white : Colors.white24),
-                          onPressed: _historicoRedo.isNotEmpty ? _refazer : null,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Fecha a tela imediatamente e salva a nota em background.
-  /// Retorna `true` ao pop quando havia conteúdo, `false` caso contrário.
-  void _fecharComSalvar() {
+  // Correção estrutural feita aqui: Agora o método gerencia o fluxo de pop de forma limpa e assíncrona
+  Future<void> _fecharComSalvar() async {
     final titulo = _tituloController.text.trim();
     final conteudo = _conteudoController.text.trim();
 
@@ -439,33 +385,241 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
       return;
     }
 
-    // Pop primeiro para garantir que a Home volte rápido.
+    // Primeiro fecha a tela para dar sensação de agilidade
     if (mounted) Navigator.pop(context, true);
 
-    // Salva em background sem depender do context.
-    () async {
-      _bloquearListener = true;
-      try {
-        if (_notaIdAtual == null) {
-          final insertedId = await _noteRepository.salvarNota(
-            titulo: titulo,
-            conteudo: conteudo,
-            idUsuario: widget.idUsuario,
-          );
-          if (insertedId != 0) _notaIdAtual = insertedId;
-        } else {
-          await _noteRepository.salvarNota(
-            notaId: _notaIdAtual,
-            idUsuario: widget.idUsuario,
-            titulo: titulo,
-            conteudo: conteudo,
-          );
-        }
-      } catch (e, st) {
-        debugPrint('[NOTA] erro ao salvar em background: $e\n$st');
-      } finally {
-        _bloquearListener = false;
-      }
-    }();
+    // Salva em background de forma estruturada sem quebrar o ciclo do widget
+    _bloquearListener = true;
+    try {
+      await _noteRepository.salvarNota(
+        notaId: _notaIdAtual,
+        idUsuario: widget.idUsuario,
+        titulo: titulo.isEmpty ? "Título da nota" : titulo,
+        conteudo: conteudo,
+        nomeAnexo: _nomeArquivoAnexado,
+        caminhoAnexo: _caminhoArquivoAnexado,
+      );
+    } catch (e, st) {
+      debugPrint('[NOTA] erro ao salvar em background: $e\n$st');
+    } finally {
+      _bloquearListener = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _fecharComSalvar();
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        ),
+        child: Stack(
+          children: [
+            Scaffold(
+              backgroundColor: Colors.white,
+              body: SafeArea(
+                child: Column(
+                  children: [
+                    // --- Barra de Topo (Título e Ações Rápidas) ---
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_circle_left_outlined, color: Colors.grey, size: 30),
+                                onPressed: _fecharComSalvar,
+                              ),
+                              Expanded(
+                                child: TextField(
+                                  controller: _tituloController,
+                                  decoration: const InputDecoration(
+                                    hintText: "Título da nota",
+                                    border: InputBorder.none,
+                                    hintStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black54),
+                                  ),
+                                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.attachment, color: Colors.black54),
+                                onPressed: _confirmarAnexo,
+                              ),
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert, color: Colors.black54),
+                                onSelected: (value) {
+                                  switch (value) {
+                                    case 'chat':
+                                      Navigator.push(context, MaterialPageRoute(builder: (context) => ChatTela(
+                                        textoNota: _conteudoController.text,
+                                        tituloNota: _tituloController.text,
+                                      )));
+                                      break;
+                                    case 'importar':
+                                      _confirmarImportacaoConteudo();
+                                      break;
+                                    case 'copiar':
+                                      Clipboard.setData(ClipboardData(text: _conteudoController.text));
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Texto copiado!")));
+                                      break;
+                                    case 'excluir':
+                                      _confirmarExclusaoNota();
+                                      break;
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'chat',
+                                    child: ListTile(
+                                      leading: Icon(Icons.add_comment_outlined, color: Colors.blueAccent, size: 20),
+                                      title: Text("Conversar com Chat"),
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'importar',
+                                    child: ListTile(
+                                      leading: Icon(Icons.file_download_outlined, size: 20),
+                                      title: Text("Importar arquivo (txt/pdf)"),
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'copiar',
+                                    child: ListTile(
+                                      leading: Icon(Icons.copy, size: 20),
+                                      title: Text("Copiar tudo"),
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                  const PopupMenuDivider(),
+                                  const PopupMenuItem(
+                                    value: 'excluir',
+                                    child: ListTile(
+                                      leading: Icon(Icons.delete, size: 20, color: Colors.red),
+                                      title: Text("Excluir nota", style: TextStyle(color: Colors.red)),
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const Divider(color: Colors.black45, thickness: 1, indent: 10, endIndent: 10),
+                        ],
+                      ),
+                    ),
+
+                    // --- Bloco do Arquivo Anexado (Se existir) ---
+                    if (_nomeArquivoAnexado != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                        child: InkWell(
+                          onTap: _abrirArquivoAnexo,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF31A89C).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFF31A89C).withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.insert_drive_file, color: Color(0xFF31A89C), size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _nomeArquivoAnexado!, 
+                                    style: const TextStyle(
+                                      color: Color(0xFF31A89C), 
+                                      fontWeight: FontWeight.bold, 
+                                      decoration: TextDecoration.underline
+                                    ), 
+                                    overflow: TextOverflow.ellipsis
+                                  )
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.cancel, color: Colors.red, size: 20),
+                                  onPressed: _confirmarExcluirAnexo,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // --- Área de Edição do Conteúdo ---
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: TextField(
+                          controller: _conteudoController,
+                          focusNode: _conteudoFocusNode,
+                          maxLines: null,
+                          keyboardType: TextInputType.multiline,
+                          decoration: const InputDecoration(
+                            hintText: "Comece a escrever...",
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // --- Barra Inferior Customizada (Histórico e Status) ---
+                    Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Container(
+                        height: 55,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF04332E),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10), 
+                              child: _buildStatusIcon()
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.cleaning_services_rounded, color: Colors.white), 
+                              onPressed: () => _conteudoController.clear()
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              icon: Icon(Icons.undo_rounded, color: _historicoUndo.length > 1 ? Colors.white : Colors.white24), 
+                              onPressed: _historicoUndo.length > 1 ? _desfazer : null
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.redo_rounded, color: _historicoRedo.isNotEmpty ? Colors.white : Colors.white24), 
+                              onPressed: _historicoRedo.isNotEmpty ? _refazer : null
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_estaCarregando)
+              Container(
+                color: Colors.black26, 
+                child: const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF31A89C))
+                )
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

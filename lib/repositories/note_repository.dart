@@ -10,12 +10,16 @@ class NoteRepository {
     required String conteudo,
     required int idUsuario,
     int? notaId,
+    String? nomeAnexo,     // Adicionado para suportar anexos
+    String? caminhoAnexo,  // Adicionado para suportar anexos
   }) {
     if (notaId == null) {
       return DatabaseHelper.instance.inserirNota(
         titulo: titulo,
         conteudo: conteudo,
         idUsuario: idUsuario,
+        nomeAnexo: nomeAnexo,       // Passando o anexo para o insert
+        caminhoAnexo: caminhoAnexo, // Passando o anexo para o insert
       );
     }
 
@@ -24,6 +28,8 @@ class NoteRepository {
       idUsuario: idUsuario,
       titulo: titulo,
       conteudo: conteudo,
+      nomeAnexo: nomeAnexo,       // Passando o anexo para o update
+      caminhoAnexo: caminhoAnexo, // Passando o anexo para o update
     );
   }
 
