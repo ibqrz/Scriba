@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 const int proxyPort = 8080;
-const String proxyHealthUrl = 'http://localhost:$proxyPort/health';
 
 Future<void> main(List<String> args) async {
-  print('🚀 Scriba Dev Runner - Starting...\n');
+  // ALTERAÇÃO: Descobre o dispositivo alvo. Se não passar nada, o padrão é 'chrome'
+  String dispositivo = args.isNotEmpty ? args[0].toLowerCase() : 'chrome';
+
+  print('🚀 Scriba Dev Runner - Starting for target: [$dispositivo]...\n');
 
   Process? proxyProcess;
   Process? flutterProcess;
@@ -21,12 +23,14 @@ Future<void> main(List<String> args) async {
     // Kill any existing process on port 8080
     await _killExistingProxy();
 
-    // Start proxy and Flutter web in parallel
+    // Start proxy and Flutter in parallel
     print('📡 Starting proxy on port $proxyPort...');
-    print('🌐 Starting Flutter web...');
+    print('🌐 Starting Flutter on device: $dispositivo...');
     
     final proxyFuture = _startProxy();
-    final flutterFuture = _startFlutterWeb();
+    
+    // ALTERAÇÃO: Passando o dispositivo escolhido para a função do Flutter
+    final flutterFuture = _startFlutter(dispositivo);
 
     proxyProcess = await proxyFuture;
     flutterProcess = await flutterFuture;
@@ -56,7 +60,7 @@ Future<void> _killExistingProxy() async {
   } catch (e) {
     print('⚠ Could not kill existing proxy: $e');
   }
-  await Future.delayed(Duration(milliseconds: 500));
+  await Future.delayed(const Duration(milliseconds: 500));
 }
 
 Future<Process> _startProxy() async {
@@ -69,25 +73,34 @@ Future<Process> _startProxy() async {
   return process;
 }
 
+// ALTERAÇÃO: A função agora é genérica e aceita qualquer dispositivo configurado
+Future<Process> _startFlutter(String dispositivo) async {
+  // Se for emulador android, usa o IP especial 10.0.2.2, caso contrário usa localhost
+  String proxyBaseUrl = (dispositivo == 'android') 
+      ? 'http://10.0.2.2:8080' 
+      : 'http://localhost:8080';
 
+  // Configura os argumentos base do comando 'flutter run'
+  List<String> flutterArgs = [
+    'run',
+    '-d',
+    dispositivo,
+    '--dart-define=SCRIBA_PROXY_BASE_URL=$proxyBaseUrl',
+  ];
 
-Future<Process> _startFlutterWeb() async {
-  const proxyBaseUrl = 'http://localhost:8080';
+  // Se for um navegador de internet (chrome ou edge), mantém a porta fixa 5000
+  if (dispositivo == 'chrome' || dispositivo == 'edge' || dispositivo == 'web-server') {
+    flutterArgs.add('--web-port=5000');
+  }
 
   final process = await Process.start(
     'flutter',
-    [
-      'run',
-      '-d',
-      'chrome',
-      '--web-port=5000', // Porta fixa para facilitar
-      '--dart-define=SCRIBA_PROXY_BASE_URL=$proxyBaseUrl',
-    ],
-    runInShell: true, // Garante que o comando seja executado no shell do sistema
+    flutterArgs,
+    runInShell: true, 
     mode: ProcessStartMode.inheritStdio,
   );
 
-  // Adiciona um pequeno atraso para dar tempo ao Chrome de abrir
+  // Pequeno atraso para o carregamento inicial
   await Future.delayed(const Duration(seconds: 5));
 
   return process;
@@ -100,5 +113,5 @@ Future<void> _cleanup(Process? proxyProcess, Process? flutterProcess) async {
   if (flutterProcess != null && !flutterProcess.kill()) {
     print('⚠ Could not terminate Flutter process');
   }
-  await Future.delayed(Duration(milliseconds: 500));
+  await Future.delayed(const Duration(milliseconds: 500));
 }

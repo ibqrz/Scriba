@@ -170,11 +170,15 @@ class _CadastroTelaState extends State<CadastroTela> {
                 controller: _sobrenomeController,
                 decoration: InputDecoration(
                   labelText: 'Digite seu sobrenome',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  floatingLabelStyle: TextStyle(color: corPrincipal),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      width: 2.0,
-                    ),
+                    borderSide: const BorderSide(width: 2.0, color: Colors.black),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(width: 2.0, color: corPrincipal),
                   ),
                 ),
               ),
@@ -184,12 +188,16 @@ class _CadastroTelaState extends State<CadastroTela> {
               child: TextField(
                 controller: _loginController,
                 decoration: InputDecoration(
-                  labelText: 'Digite seu login (usuário)',
+                  labelText: 'Digite seu login (usuário)',                  
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  floatingLabelStyle: TextStyle(color: corPrincipal),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      width: 2.0,
-                    ),
+                    borderSide: const BorderSide(width: 2.0, color: Colors.black),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(width: 2.0, color: corPrincipal),
                   ),
                 ),
               ),

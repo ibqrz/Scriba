@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:typed_data'; // Importação necessária para ler os bytes no Web
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -144,7 +144,6 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
                   idUsuario: widget.idUsuario,
                 );
               }
-              if (!mounted) return;
               rootNavigator.pop(true); // Sai da tela retornando true para recarregar a home
             },
             child: const Text("EXCLUIR", style: TextStyle(color: Colors.white)),
@@ -202,44 +201,57 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
     );
   }
 
-  // --- Lógicas de Arquivo ---
+// --- Lógicas de Arquivo Adaptadas para Versões Antigas + Web ---
 
   Future<void> _importarArquivoParaAnexo() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.any);
-      if (result != null && result.files.single.path != null) {
+      // Chamada direta sem o .platform para funcionar na sua versão do pacote
+      FilePickerResult? result = await FilePicker.pickFiles(type: FileType.any);
+      if (result != null) {
         setState(() {
           _nomeArquivoAnexado = result.files.single.name;
-          _caminhoArquivoAnexado = result.files.single.path;
+          _caminhoArquivoAnexado = result.files.single.path ?? result.files.single.name;
         });
         _salvarNoBanco(encerrarTela: false);
       }
-    } catch (e) { debugPrint("Erro anexo: $e"); }
+    } catch (e) { 
+      debugPrint("Erro anexo: $e"); 
+    }
   }
 
   Future<void> _importarConteudoDeArquivo() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      // Chamada direta sem o .platform
+      FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'txt', 'md'],
       );
 
-      if (result != null && result.files.single.path != null) {
+      if (result != null) {
         setState(() => _estaCarregando = true);
         await Future.delayed(const Duration(milliseconds: 300));
 
         String textoExtraido = "";
         final extensao = result.files.single.extension?.toLowerCase();
+        
+        // Em versões antigas do file_picker rodando na Web, os bytes ficam dentro de result.files.single.bytes
+        final Uint8List? bytes = result.files.single.bytes;
+
+        if (bytes == null) {
+          throw Exception("Não foi possível ler os dados binários do arquivo. Verifique as permissões.");
+        }
 
         if (extensao == 'pdf') {
-          final File file = File(result.files.single.path!);
-          final PdfDocument document = PdfDocument(inputBytes: await file.readAsBytes());
+          // O Syncfusion extrai o PDF direto dos bytes na memória
+          final PdfDocument document = PdfDocument(inputBytes: bytes);
           textoExtraido = PdfTextExtractor(document).extractText();
           document.dispose();
         } else {
-          final File file = File(result.files.single.path!);
-          textoExtraido = await file.readAsString();
+          // Converte os bytes para texto puro (UTF-8) para .txt e .md
+          textoExtraido = String.fromCharCodes(bytes);
         }
+
+        if (!mounted) return;
 
         if (textoExtraido.trim().isNotEmpty) {
           setState(() {
@@ -252,13 +264,16 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      setState(() => _estaCarregando = false);
+      debugPrint("Erro detalhado na leitura: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Erro ao ler arquivo.")));
+        setState(() => _estaCarregando = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Erro ao ler conteúdo do arquivo.")),
+        );
       }
     }
   }
-
+  
   Future<void> _abrirArquivoAnexo() async {
     if (_caminhoArquivoAnexado != null) await OpenFilex.open(_caminhoArquivoAnexado!);
   }
@@ -375,7 +390,6 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
     }
   }
 
-  // Correção estrutural feita aqui: Agora o método gerencia o fluxo de pop de forma limpa e assíncrona
   Future<void> _fecharComSalvar() async {
     final titulo = _tituloController.text.trim();
     final conteudo = _conteudoController.text.trim();
@@ -385,10 +399,8 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
       return;
     }
 
-    // Primeiro fecha a tela para dar sensação de agilidade
     if (mounted) Navigator.pop(context, true);
 
-    // Salva em background de forma estruturada sem quebrar o ciclo do widget
     _bloquearListener = true;
     try {
       await _noteRepository.salvarNota(
@@ -518,7 +530,7 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
                       ),
                     ),
 
-                    // --- Bloco do Arquivo Anexado (Se existir) ---
+                    // --- Bloco do Arquivo Anexado ---
                     if (_nomeArquivoAnexado != null)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
@@ -573,7 +585,7 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
                       ),
                     ),
 
-                    // --- Barra Inferior Customizada (Histórico e Status) ---
+                    // --- Barra Inferior Customizada ---
                     Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: Container(

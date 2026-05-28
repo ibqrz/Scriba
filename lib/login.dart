@@ -81,12 +81,21 @@ class _LoginTelaState extends State<LoginTela> {
           ? usuarioFinal['id_usuario'] as int
           : -1;
 
+      // ALTERAÇÃO: Tratamento em cascata para garantir que o nome seja extraído corretamente
+      // independente de a chave ser 'nome', 'nome_usuario' ou 'username'.
+      String? nomeExtraido;
+      if (usuarioFinal != null) {
+        nomeExtraido = usuarioFinal['nome']?.toString() ?? 
+                       usuarioFinal['nome_usuario']?.toString() ?? 
+                       usuarioFinal['username']?.toString();
+      }
+
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
           builder: (context) => HomePage(
             idUsuario: idParaNavegar,
-            nomeUsuario: usuarioFinal?['nome']?.toString(),
+            nomeUsuario: nomeExtraido, // Passa o nome devidamente recuperado
           ),
         ),
         (route) => false,
@@ -105,7 +114,6 @@ class _LoginTelaState extends State<LoginTela> {
     }
   }
 
- 
 // ------------------------------------------------------------ 
 
   @override
@@ -143,16 +151,16 @@ class _LoginTelaState extends State<LoginTela> {
                 controller: _emailController,
                 cursorColor: corPrincipal,
                 decoration: InputDecoration(
-                  labelText: 'Digite seu usuário ou e-mail',
+                  labelText: 'Digite seu usuário',
                   labelStyle: const TextStyle(color: Colors.grey),
-                  floatingLabelStyle: TextStyle(color: corPrincipal), // Cor do label quando sobe
+                  floatingLabelStyle: TextStyle(color: corPrincipal),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(width: 2.0, color: Colors.black), // Borda normal
+                    borderSide: const BorderSide(width: 2.0, color: Colors.black),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(width: 2.0, color: corPrincipal), // Borda quando clica
+                    borderSide: BorderSide(width: 2.0, color: corPrincipal),
                   ),
                 ),
               ),
