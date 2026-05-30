@@ -1,6 +1,6 @@
 <p id="desc"></p>
 
-<h1><img src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f21a/512.webp" width="35" height="35" style="vertical-align: middle;"> Scriba</h1>
+<h1> ✒️ Scriba</h1>
 <p><em>Suas Ideias em Ordem</em></p>
 
 <p>O Scriba é um aplicativo de gerenciamento de notas pessoais desenvolvido em Flutter. Ele permite que usuários organizem seus pensamentos de forma rápida, segura e persistente, contando com uma interface intuitiva e suporte a múltiplos perfis de usuário localmente. O ecossistema inclui uma arquitetura cliente-servidor integrada por meio de microsserviços e um proxy reverso dedicado para autenticação distribuída e inteligência artificial.</p>
