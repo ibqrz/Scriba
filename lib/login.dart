@@ -151,7 +151,7 @@ class _LoginTelaState extends State<LoginTela> {
                 controller: _emailController,
                 cursorColor: corPrincipal,
                 decoration: InputDecoration(
-                  labelText: 'Digite seu usuário',
+                  labelText: 'Digite seu usuário ou e-mail',
                   labelStyle: const TextStyle(color: Colors.grey),
                   floatingLabelStyle: TextStyle(color: corPrincipal),
                   enabledBorder: OutlineInputBorder(

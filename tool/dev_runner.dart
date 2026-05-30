@@ -4,15 +4,13 @@ import 'dart:io';
 const int proxyPort = 8080;
 
 Future<void> main(List<String> args) async {
-  // ALTERAÇÃO: Descobre o dispositivo alvo. Se não passar nada, o padrão é 'chrome'
-  String dispositivo = args.isNotEmpty ? args[0].toLowerCase() : 'chrome';
-
-  print('🚀 Scriba Dev Runner - Starting for target: [$dispositivo]...\n');
+  String alvoInput = args.isNotEmpty ? args[0] : 'chrome';
+  
+  print('🚀 Scriba Dev Runner - Initializing...');
 
   Process? proxyProcess;
   Process? flutterProcess;
 
-  // Handle Ctrl+C for graceful shutdown
   ProcessSignal.sigint.watch().listen((_) async {
     print('\n\n🛑 Shutting down gracefully...');
     await _cleanup(proxyProcess, flutterProcess);
@@ -20,22 +18,35 @@ Future<void> main(List<String> args) async {
   });
 
   try {
-    // Kill any existing process on port 8080
     await _killExistingProxy();
 
-    // Start proxy and Flutter in parallel
+    String dispositivoFinal = alvoInput;
+    
+    if (alvoInput.toLowerCase() == 'mobile' || alvoInput.toLowerCase() == 'android') {
+      print('🔍 Searching for connected mobile devices...');
+      String? idDetectado = await _buscarIdDispositivoMobile();
+      
+      if (idDetectado != null) {
+        dispositivoFinal = idDetectado;
+        print('📱 Device auto-detected: [$dispositivoFinal]');
+        
+        // 🔥 NOVO: Redireciona a porta 8080 do celular para o PC via USB de forma genérica
+        print('🔌 Linking device port 8080 to PC via USB...');
+        await Process.run('adb', ['-s', dispositivoFinal, 'forward', 'tcp:8080', 'tcp:8080'], runInShell: true);
+      } else {
+        print('⚠ No physical mobile device or emulator detected. Falling back to input: [$alvoInput]');
+      }
+    }
+
     print('📡 Starting proxy on port $proxyPort...');
-    print('🌐 Starting Flutter on device: $dispositivo...');
+    print('🌐 Starting Flutter on device: $dispositivoFinal...');
     
     final proxyFuture = _startProxy();
-    
-    // ALTERAÇÃO: Passando o dispositivo escolhido para a função do Flutter
-    final flutterFuture = _startFlutter(dispositivo);
+    final flutterFuture = _startFlutter(dispositivoFinal);
 
     proxyProcess = await proxyFuture;
     flutterProcess = await flutterFuture;
 
-    // Wait for both processes to complete
     await Future.wait([
       proxyProcess.exitCode,
       flutterProcess.exitCode,
@@ -45,6 +56,80 @@ Future<void> main(List<String> args) async {
     await _cleanup(proxyProcess, flutterProcess);
     exit(1);
   }
+}
+
+/// Executa 'flutter devices' em background e captura o ID do primeiro dispositivo mobile real
+Future<String?> _buscarIdDispositivoMobile() async {
+  try {
+    final result = await Process.run('flutter', ['devices'], runInShell: true);
+    if (result.exitCode == 0) {
+      String stdoutOriginal = result.stdout.toString();
+      
+      // CORREÇÃO DO ENCODING: Substitui o ponto bugado "â€¢" ou o ponto normal "•" por um caractere seguro "|"
+      stdoutOriginal = stdoutOriginal.replaceAll('â€¢', '|').replaceAll('•', '|');
+
+      // Limpa quebras de linha do Windows
+      final linhas = stdoutOriginal.replaceAll('\r', '').split('\n');
+      
+      for (var linha in linhas) {
+        if (linha.contains('(mobile)')) {
+          final partes = linha.split('|');
+          if (partes.length > 1) {
+            final idDispositivo = partes[1].trim();
+            if (idDispositivo.isNotEmpty) {
+              return idDispositivo;
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    print('⚠ Error during device auto-detection: $e');
+  }
+  return null;
+}
+
+Future<String> _descobrirIpLocal() async {
+  try {
+    final interfaces = await NetworkInterface.list(
+      includeLoopback: false,
+      type: InternetAddressType.IPv4,
+    );
+
+    print('\n--- DEBUG: IPs Encontrados no Computador ---');
+    for (var interface in interfaces) {
+      for (var endereco in interface.addresses) {
+        print('Placa: [${interface.name}] -> IP: ${endereco.address}');
+      }
+    }
+    print('-------------------------------------------\n');
+
+    // Tenta buscar o IP do Wi-Fi primeiro (geralmente contém "wi-fi" ou "wlan" no nome)
+    for (var interface in interfaces) {
+      final nome = interface.name.toLowerCase();
+      if (nome.contains('wi-fi') || nome.contains('wlan') || nome.contains('wireless')) {
+        for (var endereco in interface.addresses) {
+          return endereco.address;
+        }
+      }
+    }
+
+    // Filtro secundário padrão
+    for (var interface in interfaces) {
+      for (var endereco in interface.addresses) {
+        if (endereco.address.startsWith('192.168.') || endereco.address.startsWith('10.')) {
+          return endereco.address;
+        }
+      }
+    }
+    
+    if (interfaces.isNotEmpty && interfaces.first.addresses.isNotEmpty) {
+      return interfaces.first.addresses.first.address;
+    }
+  } catch (e) {
+    print('⚠ Could not auto-detect local IP: $e');
+  }
+  return 'localhost';
 }
 
 Future<void> _killExistingProxy() async {
@@ -73,14 +158,31 @@ Future<Process> _startProxy() async {
   return process;
 }
 
-// ALTERAÇÃO: A função agora é genérica e aceita qualquer dispositivo configurado
 Future<Process> _startFlutter(String dispositivo) async {
-  // Se for emulador android, usa o IP especial 10.0.2.2, caso contrário usa localhost
-  String proxyBaseUrl = (dispositivo == 'android') 
-      ? 'http://10.0.2.2:8080' 
-      : 'http://localhost:8080';
+  final dispositivoLower = dispositivo.toLowerCase();
 
-  // Configura os argumentos base do comando 'flutter run'
+  bool ehAndroid = dispositivoLower == 'android' || 
+                   dispositivoLower == 'mobile' || 
+                   dispositivoLower.startsWith('emulator-') ||
+                   RegExp(r'^[a-zA-Z0-9_-]{6,}$').hasMatch(dispositivo);
+
+  bool ehWeb = dispositivoLower == 'chrome' || 
+               dispositivoLower == 'edge' || 
+               dispositivoLower == 'web-server';
+
+  String proxyBaseUrl = 'http://localhost:8080';
+  
+  if (ehAndroid) {
+    if (dispositivoLower.startsWith('emulator-')) {
+      proxyBaseUrl = 'http://10.0.2.2:8080'; 
+    } else {
+      // 🔥 AUTOMAÇÃO: Descobre o IP da sua rede sem precisar digitar nada!
+      String ipDinamico = await _descobrirIpLocal();
+      print('🌐 Network IP auto-detected for mobile connection: [$ipDinamico]');
+      proxyBaseUrl = 'http://$ipDinamico:8080';
+    }
+  }
+
   List<String> flutterArgs = [
     'run',
     '-d',
@@ -88,8 +190,7 @@ Future<Process> _startFlutter(String dispositivo) async {
     '--dart-define=SCRIBA_PROXY_BASE_URL=$proxyBaseUrl',
   ];
 
-  // Se for um navegador de internet (chrome ou edge), mantém a porta fixa 5000
-  if (dispositivo == 'chrome' || dispositivo == 'edge' || dispositivo == 'web-server') {
+  if (ehWeb) {
     flutterArgs.add('--web-port=5000');
   }
 
@@ -100,7 +201,6 @@ Future<Process> _startFlutter(String dispositivo) async {
     mode: ProcessStartMode.inheritStdio,
   );
 
-  // Pequeno atraso para o carregamento inicial
   await Future.delayed(const Duration(seconds: 5));
 
   return process;

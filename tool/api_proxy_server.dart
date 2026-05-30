@@ -6,8 +6,9 @@ const String _authBaseUrl = 'https://mobile-ios-login.zani0x03.eti.br/api';
 const String _iaBaseUrl = 'https://mobile-ios-ia.zani0x03.eti.br/api';
 
 Future<void> main(List<String> args) async {
-  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 8080);
-  stdout.writeln('Scriba API proxy running at http://localhost:8080');
+  // 🔥 ALTERAÇÃO AQUI: Mudado de loopbackIPv4 para anyIPv4 para escutar a rede local inteira
+  final server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
+  stdout.writeln('Scriba API proxy running at http://0.0.0.0:8080');
 
   await for (final request in server) {
     unawaited(_handleRequest(request));

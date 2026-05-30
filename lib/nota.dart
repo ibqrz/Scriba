@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert'; // Necessário para converter os bytes do TXT/MD com segurança UTF-8
 import 'dart:typed_data'; // Importação necessária para ler os bytes no Web
+import 'dart:io' show File; // Importado com segurança para evitar conflitos na Web
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -201,13 +203,20 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
     );
   }
 
-// --- Lógicas de Arquivo Adaptadas para Versões Antigas + Web ---
+  // --- Lógicas de Arquivo Universais (Adaptada para chamadas estáticas diretas) ---
+
+  Future<dynamic> _executarPickFiles({FileType type = FileType.any, List<String>? allowedExtensions}) async {
+    return await FilePicker.pickFiles(
+      type: type,
+      allowedExtensions: allowedExtensions,
+      withData: true, // Garante a população da propriedade .bytes na Web
+    );
+  }
 
   Future<void> _importarArquivoParaAnexo() async {
     try {
-      // Chamada direta sem o .platform para funcionar na sua versão do pacote
-      FilePickerResult? result = await FilePicker.pickFiles(type: FileType.any);
-      if (result != null) {
+      final dynamic result = await _executarPickFiles(type: FileType.any);
+      if (result != null && result.files.isNotEmpty) {
         setState(() {
           _nomeArquivoAnexado = result.files.single.name;
           _caminhoArquivoAnexado = result.files.single.path ?? result.files.single.name;
@@ -221,34 +230,52 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
 
   Future<void> _importarConteudoDeArquivo() async {
     try {
-      // Chamada direta sem o .platform
-      FilePickerResult? result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'txt', 'md'],
-      );
+      setState(() => _estaCarregando = true);
 
-      if (result != null) {
-        setState(() => _estaCarregando = true);
+      // Usamos FileType.any para garantir compatibilidade e clique fluido no ambiente Web
+      final dynamic result = await _executarPickFiles(type: FileType.any);
+
+      if (result != null && result.files.isNotEmpty) {
         await Future.delayed(const Duration(milliseconds: 300));
 
-        String textoExtraido = "";
         final extensao = result.files.single.extension?.toLowerCase();
         
-        // Em versões antigas do file_picker rodando na Web, os bytes ficam dentro de result.files.single.bytes
-        final Uint8List? bytes = result.files.single.bytes;
-
-        if (bytes == null) {
-          throw Exception("Não foi possível ler os dados binários do arquivo. Verifique as permissões.");
+        // Validação manual das extensões permitidas
+        if (extensao != 'pdf' && extensao != 'txt' && extensao != 'md') {
+          throw Exception("Formato não suportado. Selecione apenas arquivos PDF, TXT ou MD.");
         }
 
+        String textoExtraido = "";
+        
+        // Captura os bytes carregados pelo parâmetro 'withData: true'
+        Uint8List? bytes = result.files.single.bytes;
+
+        // Fallback para Mobile/Desktop onde bytes vem nulo mas o path existe
+        if (bytes == null && result.files.single.path != null) {
+          try {
+            final arquivoFisico = File(result.files.single.path!);
+            if (await arquivoFisico.exists()) {
+              bytes = await arquivoFisico.readAsBytes();
+            }
+          } catch (ioError) {
+            // Isolado para capturar erros de dart:io (como '_Namespace') na Web
+            debugPrint("Ambiente Web ou restrito detectado ao tentar ler path: $ioError");
+          }
+        }
+
+        // Validação após as duas tentativas (Web e Nativo)
+        if (bytes == null || bytes.isEmpty) {
+          throw Exception("O arquivo foi selecionado, mas os dados não foram carregados na memória.");
+        }
+
+        // Processamento correto baseado no tipo de extensão mapeado
         if (extensao == 'pdf') {
-          // O Syncfusion extrai o PDF direto dos bytes na memória
           final PdfDocument document = PdfDocument(inputBytes: bytes);
           textoExtraido = PdfTextExtractor(document).extractText();
           document.dispose();
         } else {
-          // Converte os bytes para texto puro (UTF-8) para .txt e .md
-          textoExtraido = String.fromCharCodes(bytes);
+          // Utf8Decoder com allowMalformed impede falhas de quebra caso o arquivo possua caracteres complexos
+          textoExtraido = const Utf8Decoder(allowMalformed: true).convert(bytes);
         }
 
         if (!mounted) return;
@@ -260,22 +287,37 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
           });
           _salvarNoBanco(encerrarTela: false);
         } else { 
-          setState(() => _estaCarregando = false); 
+          setState(() => _estaCarregando = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("O arquivo selecionado está vazio ou não possui texto extraível.")),
+          );
         }
+      } else {
+        setState(() => _estaCarregando = false);
       }
     } catch (e) {
       debugPrint("Erro detalhado na leitura: $e");
       if (mounted) {
         setState(() => _estaCarregando = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Erro ao ler conteúdo do arquivo.")),
+          SnackBar(
+            content: Text(e.toString().contains("Exception:") 
+              ? e.toString().replaceAll("Exception: ", "") 
+              : "Erro ao processar conteúdo do arquivo.")
+          ),
         );
       }
     }
   }
   
   Future<void> _abrirArquivoAnexo() async {
-    if (_caminhoArquivoAnexado != null) await OpenFilex.open(_caminhoArquivoAnexado!);
+    if (_caminhoArquivoAnexado != null) {
+      try {
+        await OpenFilex.open(_caminhoArquivoAnexado!);
+      } catch (e) {
+        debugPrint("Não foi possível abrir o anexo neste ambiente: $e");
+      }
+    }
   }
 
   // --- Sistema de Salvamento e Histórico ---
@@ -500,7 +542,7 @@ class _NotaTelaState extends State<NotaTela> with WidgetsBindingObserver {
                                     value: 'importar',
                                     child: ListTile(
                                       leading: Icon(Icons.file_download_outlined, size: 20),
-                                      title: Text("Importar arquivo (txt/pdf)"),
+                                      title: Text("Importar arquivo (txt/pdf/md)"),
                                       contentPadding: EdgeInsets.zero,
                                     ),
                                   ),
