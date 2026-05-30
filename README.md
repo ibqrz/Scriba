@@ -1,260 +1,217 @@
 <p id="desc"></p>
 
-Aplicativo acadêmico de gerenciamento de notas desenvolvido em Flutter, com cadastro e login, persistência local em SQLite e integração com API remota de autenticação e inteligência artificial.
+<h1><img src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f21a/512.webp" width="35" height="35" style="vertical-align: middle;"> Scriba</h1>
+<p><em>Suas Ideias em Ordem</em></p>
 
-## Visão Geral
+<p>O Scriba é um aplicativo de gerenciamento de notas pessoais desenvolvido em Flutter. Ele permite que usuários organizem seus pensamentos de forma rápida, segura e persistente, contando com uma interface intuitiva e suporte a múltiplos perfis de usuário localmente. O ecossistema inclui uma arquitetura cliente-servidor integrada por meio de microsserviços e um proxy reverso dedicado para autenticação distribuída e inteligência artificial.</p>
 
-O Scriba foi estruturado para permitir:
+<blockquote><strong>Status:</strong> Em desenvolvimento</blockquote>
 
-- criar usuário local e remoto no mesmo fluxo;
-- fazer login com validação local e, quando necessário, validação na API;
-- reaproveitar o token salvo localmente por até 24 horas sem chamar a API novamente;
-- armazenar token com validade de 24 horas;
-- criar, editar, listar e excluir notas por usuário;
-- acessar chat com IA usando `Bearer token`.
+<h2 id="menu">🔍 Menu</h2>
+<ul>
+    <li><a href="#desc">Descrição</a></li>
+    <li><a href="#func">Funcionalidades Atuais</a></li>
+    <li><a href="#tec">Tecnologias Utilizadas</a></li>
+    <li><a href="#estrutura">Estrutura do Repositório</a></li>
+    <li><a href="#stack">Stack Técnica</a></li>
+    <li><a href="#arquitetura-e-ambiente">Arquitetura de Rede e Ambiente</a></li>
+    <li><a href="#rodar">Como Rodar</a></li>
+    <li><a href="#modelodb">Modelo de Dados</a></li>
+    <li><a href="#persistencia">Persistência e Ambiente</a></li>
+    <li><a href="#fluxo">Fluxo Funcional</a></li>
+    <li><a href="#colaboradores">Colaboradores</a></li>
+</ul>
 
-## Tecnologias Utilizadas
+<hr>
 
-- Flutter
-- Dart 3.11.x
-- HTTP via `http`
-- SQLite via `sqflite`
-- SQLite desktop via `sqflite_common_ffi`
-- SQLite web via `sqflite_common_ffi_web`
+<h2 id="func">Funcionalidades Atuais</h2>
+<ul>
+    <li><strong>Gestão de Notas (CRUD):</strong> Criação, leitura, ordenação e exclusão de notas associadas ao perfil ativo.</li>
+    <li><strong>Persistência Multiplataforma:</strong> Integração híbrida total com banco de dados estruturado SQLite para persistência física local.</li>
+    <li><strong>Busca Inteligente:</strong> Mecanismo de filtro em tempo real por título de nota integrado diretamente na barra de pesquisa da tela inicial.</li>
+    <li><strong>Interface Responsiva:</strong> Design responsivo adaptável para modo retrato (<em>portrait</em>) e paisagem (<em>landscape</em>), aplicando heurísticas de usabilidade e acessibilidade com prevenção robusta contra estouros de layout (<em>overflow</em>).</li>
+    <li><strong>Barra de Ferramentas e Dev Runner Inteligente:</strong> Script utilitário em Dart para orquestração automática e liberação forçada de portas físicas de desenvolvimento do proxy e da aplicação cliente.</li>
+</ul>
 
-## Estrutura Principal
+<hr>
 
-- `lib/main.dart`: tela inicial do app
-- `lib/cadastro.dart`: cadastro com API + banco local
-- `lib/login.dart`: login com API + banco local
-- `lib/home.dart`: home, verificação de token e lista de notas
-- `lib/database_helper.dart`: acesso ao SQLite e migrações
-- `lib/api_service.dart`: integração HTTP com as APIs remotas
-- `lib/repositories/auth_repository.dart`: orquestra cadastro e login juntando API + banco local
-- `lib/repositories/note_repository.dart`: orquestra CRUD de notas com o banco local
-- `lib/repositories/chat_repository.dart`: orquestra histórico local e respostas do chat
-- `lib/helpers/form_validators.dart`: validação compartilhada de formulários
-- `lib/nota.dart`: cadastro e edição de notas
-- `lib/chat.dart`: chat da aplicação
-- `lib/historico.dart`: histórico de conversas
-- `lib/chat_model.dart`: modelo de dados do chat
+<h2 id="tec">Tecnologias Utilizadas</h2>
+<ul>
+    <li><strong>Linguagem:</strong> Dart</li>
+    <li><strong>Framework:</strong> Flutter</li>
+    <li><strong>Banco de Dados:</strong> SQLite (via <code>sqflite</code>)</li>
+    <li><strong>Arquitetura:</strong> Princípios de Clean Code, Programação Assíncrona robusta (<code>Future</code>/<code>Stream</code>), e separação rígida de estados usando <code>StatefulWidgets</code> e fluxos reativos de controle.</li>
+    <li><strong>Design UI/UX:</strong> Prototipado no Figma com foco em heurísticas de usabilidade, padrões visuais modernos e acessibilidade digital.</li>
+    <li><strong>DevOps &amp; Infraestrutura Local:</strong> Automação de processos usando PowerShell para monitoramento e encerramento forçado de soquetes de rede TCP (<code>Get-NetTCPConnection</code>), além de suporte nativo a ferramentas do Android SDK (<code>adb</code>).</li>
+</ul>
 
-## Árvore final do projeto
+<hr>
 
-```text
-scriba/
-├─ android/
-├─ assets/
-├─ ios/
-├─ lib/
-│  ├─ api_service.dart
-│  ├─ cadastro.dart
-│  ├─ chat.dart
-│  ├─ chat_model.dart
-│  ├─ database_helper.dart
-│  ├─ helpers/
-│  │  └─ form_validators.dart
-│  ├─ historico.dart
-│  ├─ home.dart
-│  ├─ login.dart
-│  ├─ main.dart
-│  ├─ nota.dart
-│  └─ repositories/
-│     ├─ auth_repository.dart
-│     ├─ chat_repository.dart
-│     └─ note_repository.dart
-├─ linux/
-├─ macos/
-├─ pubspec.yaml
-├─ pubspec.lock
-├─ README.md
-├─ test/
-├─ tool/
-├─ web/
-└─ windows/
-```
+<h2 id="estrutura">Estrutura do Repositório</h2>
+<ul>
+    <li><code>./</code>: Raiz do app Flutter principal e arquivos de configuração.</li>
+    <li><code>lib/</code>: Código-fonte central contendo as interfaces gráficas (telas), componentes e a camada de controle de dados.</li>
+    <li><code>tool/</code>: Ferramentas avançadas de infraestrutura local de desenvolvimento:
+        <ul>
+            <li><code>api_proxy_server.dart</code>: Servidor de desenvolvimento baseado em <code>HttpServer</code> que atua como proxy reverso Cross-Origin (CORS) distribuindo requisições locais para os microsserviços cloud de Autenticação (<code>/proxy/auth</code>) e Inteligência Artificial (<code>/proxy/ia</code>).</li>
+            <li><code>dev_runner.dart</code>: Utilitário de linha de comando (<em>Orchestrator Script</em>) que automatiza a identificação do ambiente operacional, limpa processos fantasmas da porta <code>8080</code>, configura tunelamento nativo e injeta flags de compilação.</li>
+        </ul>
+    </li>
+    <li><code>web/</code>: Arquivos estruturais e configurações nativas della versão Web, contendo os assets estáveis para injeção e ciclo de vida do SQLite Web baseado em WASM.</li>
+</ul>
 
-### Legenda da Estrutura
+<hr>
 
-- `lib/`: código-fonte principal do app Flutter.
-- `lib/helpers/`: validações reutilizáveis de formulário.
-- `lib/repositories/`: camada de orquestração entre UI, API e banco local.
-- `tool/`: utilitários do projeto, como o proxy da API para web.
-- `test/`: pasta reservada para testes automatizados.
-- `web/`: recursos da versão web do aplicativo.
-- `android/`, `ios/`, `linux/`, `macos/`, `windows/`: plataformas suportadas pelo Flutter.
+<h2 id="stack">Stack Técnica</h2>
+<ul>
+    <li><strong>Flutter SDK:</strong> 3.x (com suporte moderno à migração declarativa de Gradle e Kotlin nativo)</li>
+    <li><strong>Dart SDK:</strong> ^3.11.3</li>
+    <li><strong>Banco de Dados Local:</strong> <code>sqflite</code> (Core para dispositivos móveis)</li>
+    <li><strong>Abstração Cross-Platform de Banco:</strong> <code>sqflite_common_ffi</code> e <code>sqflite_common_ffi_web</code> para suporte unificado a SQLite em ambientes Windows Desktop e Web Browsers.</li>
+    <li><strong>Manipulação de Documentos:</strong> <code>syncfusion_flutter_pdf</code> para exportação e processamento avançado de relatórios em formato PDF.</li>
+    <li><strong>Utilitários do Ecossistema:</strong> <code>file_picker</code> (v11.0.2+) com compatibilidade nativa e limpa ao Built-in Kotlin Gradle Plugin (KGP), <code>open_filex</code>, <code>path</code> e <code>http</code>.</li>
+</ul>
 
-## Fluxo da Aplicação
+<hr>
 
-1. O usuário abre a tela inicial.
-2. Escolhe cadastro ou login.
-3. O cadastro faz duas ações:
-	 - cria o usuário na API remota;
-	 - grava o usuário no SQLite local.
-4. O login primeiro tenta validar usuário e senha no banco local.
-5. Se existir token local ainda válido dentro de 24 horas, o app entra sem chamar a API.
-6. Se o token não existir ou já tiver expirado, o login chama a API remota, recebe um novo token e atualiza o SQLite local.
-7. A Home carrega as notas do usuário e verifica expiração do token.
-8. Se o token expirar, o app limpa o token e pede login novamente.
+<h2 id="arquitetura-e-ambiente">Arquitetura de Rede e Ambiente</h2>
+<p>O ecossistema do Scriba adota injeção estática em tempo de compilação utilizando a flag do ecossistema Dart <code>--dart-define</code>. A comunicação externa é completamente parametrizada através della variável de ambiente <code>SCRIBA_PROXY_BASE_URL</code>.</p>
 
-## Separação de Responsabilidades
+[Scriba App Client] ──(HTTP via Dart Define URL)──> [API Proxy Server (Port:8080)]
+│
+┌──────────────────────┴──────────────────────┐
+▼                                             ▼
+[/proxy/auth] ──> API Auth Cloud              [/proxy/ia] ──> API IA Cloud
 
-- `ApiService`: apenas requisições HTTP e token em memória.
-- `DatabaseHelper`: apenas SQLite, migrações e operações locais.
-- `AuthRepository`: coordena o fluxo de cadastro e login entre API e banco local.
-- `NoteRepository`: coordena o CRUD de notas usando apenas o banco local.
-- `ChatRepository`: coordena histórico de conversas e respostas do chat.
-- `FormValidators`: centraliza as mensagens e regras de validação dos formulários.
-- Telas (`cadastro.dart` e `login.dart`): apenas coletam dados da UI e chamam o repositório.
-- Telas de notas/chat: apenas renderizam a interface e delegam a regra para seus repositórios.
 
-## Integração com a API
+<p>O servidor proxy (<code>api_proxy_server.dart</code>) opera na porta de rede <code>8080</code> utilizando ligação de escuta global (<code>InternetAddress.anyIPv4</code> / <code>0.0.0.0</code>), interceptando e higienizando cabeçalhos impeditivos como <code>Host</code>, <code>Origin</code> e <code>Content-Length</code>, permitindo que múltiplos clientes enviem requisições com injeção automática de políticas flexíveis de CORS.</p>
 
-### Base URLs
+hr
 
-- Auth: `https://mobile-ios-login.zani0x03.eti.br/api`
-- IA: `https://mobile-ios-ia.zani0x03.eti.br/api`
+<h2 id="rodar">🚀 Como Rodar</h2>
 
-### Endpoints usados
+<h3>Pré-requisitos</h3>
+<p>Certifique-se de que o dispositivo móvel físico esteja conectado via cabo USB com a <strong>Depuração USB</strong> habilitada nas opções do desenvolvedor do seu sistema Android.</p>
 
-- `POST /register`
-- `POST /auth/login`
-- `POST /ai/chat`
+<h3>Instruções de Execução</h3>
+<ol>
+    <li>
+        <p><strong>Clone o repositório:</strong></p>
+<pre><code>git clone https://github.com/seu-usuario/scriba.git
+cd scriba</code></pre>
+    </li>
+    <li>
+        <p><strong>Garanta as dependências atualizadas do ecossistema:</strong></p>
+<pre><code>flutter pub get</code></pre>
+    </li>
+    <li>
+        <p><strong>Recarregue o Servidor de Análise (Se necessário):</strong></p>
+        <p>Pressione <code>Ctrl + Shift + P</code> (Windows/Linux) ou <code>CMD + Shift + P</code> (Mac), digite <strong>"Dart: Restart Analysis Server"</strong> e selecione a opção.</p>
+    </li>
+    <li>
+        <p><strong>Inicie o ambiente de desenvolvimento usando o Orquestrador Automático:</strong></p>
+        <p><strong>Execução Padrão (Ambiente Web / Google Chrome):</strong></p>
+        <p>O orquestrador assumirá o Chrome automaticamente, liberará a porta de rede <code>8080</code> de processos travados, inicializará o proxy local em background e executará o cliente na porta de desenvolvimento <code>5000</code>:</p>
+<pre><code>flutter pub run tool\dev_runner.dart</code></pre>
+        <p><strong>Execução Móvel Automatizada (Celular Android / Emulador):</strong></p>
+        <p>O script executará um rastreamento completo de caracteres de codificação no terminal do Windows, isolará o identificador físico do seu celular conectado e aplicará automaticamente o encapsulamento de porta por meio de <strong>ADB Port Forwarding</strong> via barramento USB. Isso elimina dependências de IPs dinâmicos:
+		</p>
+<pre><code>flutter pub run tool\dev_runner.dart mobile</code></pre>
+    </li>
+</ol>
 
-### Campos Enviados no Cadastro
+<hr>
 
-```json
-{
-	"name": "Teste",
-	"surname": "User",
-	"login": "testeuser123",
-	"email": "teste123@example.com",
-	"password": "senha123",
-	"sistemaId": "64b511cc-1392-4d37-85af-9c581961de40"
-}
-```
+<h2 id="modelodb">Modelo de Dados</h2>
 
-### Campos Enviados no Login
+<h3>Entidades</h3>
 
-```json
-{
-	"username": "testeuser123",
-	"password": "senha123",
-	"sistemaId": "64b511cc-1392-4d37-85af-9c581961de40"
-}
-```
+<table>
+    <thead>
+        <tr>
+            <th>Tabela</th>
+            <th>Atributos / Campos</th>
+            <th>Regras / Restrições</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>usuario</strong></td>
+            <td>
+                <code>id_usuario</code><br>
+                <code>nome</code><br>
+                <code>email</code><br>
+                <code>senha_hash</code><br>
+                <code>criado_em</code><br>
+                <code>atualizado_em</code>
+            </td>
+            <td>
+                INTEGER PK AUTOINCREMENT<br>
+                TEXT<br>
+                TEXT UNIQUE<br>
+                TEXT<br>
+                TEXT<br>
+                TEXT
+            </td>
+        </tr>
+        <tr>
+            <td><strong>nota</strong></td>
+            <td>
+                <code>id_nota</code><br>
+                <code>id_usuario</code><br>
+                <code>titulo</code><br>
+                <code>conteudo</code><br>
+                <code>criado_em</code><br>
+                <code>atualizado_em</code><br>
+                <code>deletado_em</code>
+            </td>
+            <td>
+                INTEGER PK AUTOINCREMENT<br>
+                INTEGER FK (&rarr; usuario.id_usuario)<br>
+                TEXT<br>
+                TEXT<br>
+                TEXT<br>
+                TEXT<br>
+                TEXT (Soft Delete)
+            </td>
+        </tr>
+    </tbody>
+</table>
 
-### Resposta Esperada do Login
+<h3>Relacionamento</h3>
+<ul>
+    <li>Um usuário possui várias notas (<strong>1:N</strong>).</li>
+</ul>
 
-O backend retorna, entre outros campos:
+<p align="center">
+    <img src="image.png" alt="Modelo de dados" style="max-width: 100%; height: auto;">
+</p>
 
-- `access_token`
-- `refresh_token`
-- `expires_in`
-- `token_type`
+<hr>
 
-## Banco de Dados Local
+<h2 id="persistencia">Persistência e Ambiente</h2>
+<ul>
+    <li><strong>Web Browser:</strong> Os dados transacionais e de tabelas locais são mapeados diretamente para persistência no sub-sistema <code>IndexedDB</code> do navegador por meio da camada de tradução do <code>sqflite_common_ffi_web</code>.</li>
+    <li><strong>Android / Desktop Nativo:</strong> Os dados são salvos localmente na sandbox segura de arquivos da aplicação dentro do armazenamento físico estável do dispositivo operacional.</li>
+    <li><strong>Segurança de Repositório:</strong> Os bancos de dados e credenciais dinâmicas geradas localmente em tempo de execução são ignorados pelo arquivo <code>.gitignore</code> do repositório, garantindo que apenas códigos-fontes estáveis e limpos sejam enviados no <code>git push</code>.</li>
+</ul>
 
-### Tabela `usuario`
+<hr>
 
-- `id_usuario`
-- `nome`
-- `sobrenome`
-- `login`
-- `email`
-- `senha_hash`
-- `token`
-- `token_criado_em`
-- `sistema_id`
-- `criado_em`
-- `atualizado_em`
+<h2 id="fluxo">Fluxo Funcional</h2>
+<ol>
+    <li><strong>Cadastro de Conta:</strong> O usuário fornece os dados, gerando um registro estruturado inicial.</li>
+    <li><strong>Autenticação:</strong> O fluxo valida o login do perfil por meio do Proxy, que faz a ponte com a API unificada em Cloud.</li>
+    <li><strong>Carga Operacional:</strong> O aplicativo cliente consome o banco de dados e exibe apenas os registros de notas de posse exclusivas da chave estrangeira (<code>id_usuario</code>) logada.</li>
+    <li><strong>Manipulação de Dados:</strong> O usuário gerencia seus registros na interface de busca e edição do ciclo de vida CRUD.</li>
+    <li><strong>Encerramento de Nota:</strong> As notas excluídas passam pelo fluxo de remoção lógica (<code>deletado_em</code>), garantindo integridade transacional de dados.</li>
+</ol>
 
-### Tabela `nota`
+<hr>
 
-- `id_nota`
-- `id_usuario`
-- `titulo`
-- `conteudo`
-- `criado_em`
-- `atualizado_em`
-- `deletado_em`
-
-## Persistência dos Dados
-
-- No Web, o SQLite fica salvo no IndexedDB do navegador.
-- No Windows/Linux, o banco é salvo localmente pelo SQLite/FFI.
-- O token é salvo no banco e também mantido em memória durante a sessão.
-
-## Validação do Token
-
-- O token fica válido por 24 horas.
-- O login pode ser concluído sem nova chamada à API se o token salvo localmente ainda estiver dentro desse prazo.
-- A Home verifica se o token expirou ao abrir.
-- Quando expira, o app:
-	- limpa o token do banco;
-	- limpa o token em memória;
-	- mostra a mensagem "Token expirado. Por favor, faça login novamente.";
-	- redireciona para a tela de login.
-
-## Como Executar
-
-### Instalar dependências
-
-```bash
-flutter pub get
-```
-
-### Rodar no navegador
-
-```bash
-flutter run -d chrome --web-port 1623
-```
-
-### Rodar no navegador com proxy automático (modo dev)
-
-Agora usamos um runner Dart que inicia automaticamente o proxy e o Flutter Web. Duas formas:
-
-- **VS Code (F5)** — já configurado: pressione `F5` (configuração "Scriba Dev (Proxy + Flutter Web)").
-- **Linha de comando** — execute:
-
-```powershell
-dart run tool/dev_runner.dart
-```
-
-O `dev_runner.dart` faz:
-- inicia `tool/api_proxy_server.dart` (proxy em `http://localhost:8080`)
-- espera o proxy responder `/health`
-- inicia `flutter run -d chrome` passando `--dart-define=SCRIBA_PROXY_BASE_URL=http://localhost:8080`
-
-Se preferir rodar o Flutter manualmente sem o proxy runner, use `flutter run -d chrome` e assegure que o proxy esteja disponível em `http://localhost:8080`.
-
-### Rodar no desktop Windows
-
-```bash
-flutter run -d windows
-```
-
-### Analisar o código
-
-```bash
-flutter analyze
-```
-
-## Testes Manuais Realizados
-
-- cadastro via API retornando `201 Created`;
-- login via API retornando `200 OK`;
-- token retornando `access_token` e `expires_in`;
-- gravação local do usuário e do token no banco.
-
-## Melhorias Futuras
-
-- logout com limpeza completa da sessão;
-- refresh token automático;
-- integração do chat com persistência completa;
-- testes de widget e integração mais amplos;
-- hash de senha mais seguro no armazenamento local.
-
-## Captura de Tela
-
-![Tela inicial do Scriba](image.png)
+<h2 id="colaboradores">👥 Colaboradores</h2>
+<ul>
+    <li>Giovana Pereira Gustavo</li>
+    <li>Isabel Queiroz Almeida</li>
+    <li>Isaias Neri da Conceição Junior</li>
+</ul>

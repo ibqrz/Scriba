@@ -112,7 +112,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // MÉTODO UNIFICADO: POPUP DE UX INTEGRADO AO REPOSITORY
   Future<void> _excluirNota(int idNota) async {
     // Exibe o diálogo de confirmação
     bool confirmar = await showDialog(

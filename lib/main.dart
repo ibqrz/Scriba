@@ -26,9 +26,9 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark, 
-        statusBarBrightness: Brightness.light,
+        statusBarColor: Colors.transparent, // barra de notificações transparente
+        statusBarIconBrightness: Brightness.dark, // icones escuras para visibilidade em fundo claro
+        statusBarBrightness: Brightness.light, // para iOS, garante que o status bar seja claro (ícones escuros)
       ),
 
       child: Scaffold(

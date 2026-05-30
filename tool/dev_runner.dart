@@ -30,7 +30,7 @@ Future<void> main(List<String> args) async {
         dispositivoFinal = idDetectado;
         print('📱 Device auto-detected: [$dispositivoFinal]');
         
-        // 🔥 NOVO: Redireciona a porta 8080 do celular para o PC via USB de forma genérica
+        // Redireciona a porta 8080 do celular para o PC via USB
         print('🔌 Linking device port 8080 to PC via USB...');
         await Process.run('adb', ['-s', dispositivoFinal, 'forward', 'tcp:8080', 'tcp:8080'], runInShell: true);
       } else {
@@ -65,10 +65,8 @@ Future<String?> _buscarIdDispositivoMobile() async {
     if (result.exitCode == 0) {
       String stdoutOriginal = result.stdout.toString();
       
-      // CORREÇÃO DO ENCODING: Substitui o ponto bugado "â€¢" ou o ponto normal "•" por um caractere seguro "|"
-      stdoutOriginal = stdoutOriginal.replaceAll('â€¢', '|').replaceAll('•', '|');
+            stdoutOriginal = stdoutOriginal.replaceAll('â€¢', '|').replaceAll('•', '|');
 
-      // Limpa quebras de linha do Windows
       final linhas = stdoutOriginal.replaceAll('\r', '').split('\n');
       
       for (var linha in linhas) {
@@ -176,7 +174,7 @@ Future<Process> _startFlutter(String dispositivo) async {
     if (dispositivoLower.startsWith('emulator-')) {
       proxyBaseUrl = 'http://10.0.2.2:8080'; 
     } else {
-      // 🔥 AUTOMAÇÃO: Descobre o IP da sua rede sem precisar digitar nada!
+      // Descobre o IP da sua rede local
       String ipDinamico = await _descobrirIpLocal();
       print('🌐 Network IP auto-detected for mobile connection: [$ipDinamico]');
       proxyBaseUrl = 'http://$ipDinamico:8080';
