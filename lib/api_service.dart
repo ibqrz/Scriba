@@ -10,21 +10,17 @@ class ApiService {
     'SCRIBA_PROXY_BASE_URL',
     defaultValue: '',
   );
-  static const String _sistemaId = '64b511cc-1392-4d37-85af-9c581961de40'; // ID do sistema fornecido pelo professor
+  static const String _sistemaId = '64b511cc-1392-4d37-85af-9c581961de40'; 
 
   static String? _token;
   static String? _cachedWebProxyBaseUrl;
 
   static Future<String> _resolveWebProxyBaseUrl() async {
     if (!kIsWeb) return '';
-    if (_cachedWebProxyBaseUrl != null) {
-      return _cachedWebProxyBaseUrl!;
-    }
+    if (_cachedWebProxyBaseUrl != null) return _cachedWebProxyBaseUrl!;
 
     final List<String> candidates = [];
-    if (_webProxyFromEnv.trim().isNotEmpty) {
-      candidates.add(_webProxyFromEnv.trim());
-    }
+    if (_webProxyFromEnv.trim().isNotEmpty) candidates.add(_webProxyFromEnv.trim());
 
     final uriBase = Uri.base;
     if (uriBase.hasAuthority && uriBase.host.isNotEmpty) {
@@ -43,9 +39,7 @@ class ApiService {
           _cachedWebProxyBaseUrl = base;
           return base;
         }
-      } catch (_) {
-        // Tenta o proximo endereco automaticamente.
-      }
+      } catch (_) {}
     }
 
     _cachedWebProxyBaseUrl =
@@ -54,16 +48,12 @@ class ApiService {
   }
 
   static Future<Uri> _authEndpoint(String path) async {
-    final baseUrl = kIsWeb
-        ? '${await _resolveWebProxyBaseUrl()}/proxy/auth'
-        : _authUrl;
+    final baseUrl = kIsWeb ? '${await _resolveWebProxyBaseUrl()}/proxy/auth' : _authUrl;
     return Uri.parse('$baseUrl$path');
   }
 
   static Future<Uri> _iaEndpoint(String path) async {
-    final baseUrl = kIsWeb
-        ? '${await _resolveWebProxyBaseUrl()}/proxy/ia'
-        : _iaUrl;
+    final baseUrl = kIsWeb ? '${await _resolveWebProxyBaseUrl()}/proxy/ia' : _iaUrl;
     return Uri.parse('$baseUrl$path');
   }
 
@@ -75,26 +65,83 @@ class ApiService {
     }
   }
 
+  /// 🔑 EXTRAÇÃO HIGIENIZADA DE TOKEN (Evita erro de token inválido na IA)
   static String? _extractToken(dynamic data) {
-    if (data is! Map<String, dynamic>) return null;
-    final token = data['token'] ?? data['access_token'];
-    if (token == null) return null;
-    return token.toString();
+    if (data == null) return null;
+    
+    String? bruto;
+    if (data is Map<String, dynamic>) {
+      // Verifica se o token está aninhado ou direto
+      final possivelToken = data['token'] ?? data['access_token'] ?? data['data']?['token'];
+      if (possivelToken is Map) {
+        bruto = possivelToken['token']?.toString() ?? possivelToken['access_token']?.toString();
+      } else {
+        bruto = possivelToken?.toString();
+      }
+    } else if (data is String) {
+      final parsed = _tryDecodeJson(data);
+      if (parsed is Map<String, dynamic>) return _extractToken(parsed);
+    }
+
+    if (bruto == null) return null;
+
+    // Remove aspas extras, espaços ou quebras de linha que invalidam o Header HTTP Bearer
+    return bruto.trim().replaceAll('"', '').replaceAll("'", "");
   }
 
-  // Getter para o token
   static String? get token => _token;
-
-  // Getter para o sistemaId
   static String get sistemaId => _sistemaId;
 
-  // Setter para o token
   static void setToken(String? novoToken) {
-    _token = novoToken;
+    if (novoToken != null) {
+      _token = novoToken.trim().replaceAll('"', '').replaceAll("'", "");
+    } else {
+      _token = null;
+    }
   }
 
-  /// Registra um novo usuário
-  /// Retorna um Map com os dados do usuário e o token, ou null se falhar
+  /// 🔐 DECODIFICADOR JWT COM SEPARAÇÃO DE NOME E SOBRENOME CORRETA
+  static Map<String, dynamic> extrairDadosDoToken(String jwtToken) {
+    try {
+      final partes = jwtToken.split('.');
+      if (partes.length < 2) return {};
+
+      String payloadNormalizado = partes[1].replaceAll('-', '+').replaceAll('_', '/');
+      switch (payloadNormalizado.length % 4) {
+        case 2: payloadNormalizado += '=='; break;
+        case 3: payloadNormalizado += '='; break;
+      }
+
+      final String payloadDecodificado = utf8.decode(base64Url.decode(payloadNormalizado));
+      final Map<String, dynamic> dadosDoToken = jsonDecode(payloadDecodificado);
+
+      // Pega o nome vindo do servidor
+      String fullName = (dadosDoToken['name'] ?? dadosDoToken['given_name'] ?? dadosDoToken['nome'] ?? 'Usuario').toString().trim();
+      String tokenSobrenome = (dadosDoToken['family_name'] ?? dadosDoToken['surname'] ?? dadosDoToken['sobrenome'] ?? '').toString().trim();
+
+      String nomeFinal = fullName;
+      String sobrenomeFinal = tokenSobrenome;
+
+      // 🛠️ CORREÇÃO DO NOME DUPLICADO: Se o sobrenome já estiver contido dentro do campo Name, 
+      // nós separamos de forma inteligente para não duplicar no banco de dados.
+      if (tokenSobrenome.isEmpty && fullName.contains(' ')) {
+        final partesNome = fullName.split(' ');
+        nomeFinal = partesNome.first;
+        sobrenomeFinal = partesNome.sublist(1).join(' ');
+      }
+
+      return {
+        'nome': nomeFinal,
+        'sobrenome': sobrenomeFinal,
+        'email': dadosDoToken['email'] ?? dadosDoToken['user_email'],
+        'login': dadosDoToken['preferred_username'] ?? dadosDoToken['sub'] ?? dadosDoToken['login'],
+      };
+    } catch (e) {
+      debugPrint('⚠️ [JWT DECODER] Falha ao ler metadados do token: $e');
+      return {};
+    }
+  }
+
   static Future<Map<String, dynamic>?> registrar({
     required String nome,
     required String sobrenome,
@@ -106,9 +153,7 @@ class ApiService {
     try {
       final response = await http.post(
         await _authEndpoint('/register'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': nome,
           'surname': sobrenome,
@@ -117,10 +162,7 @@ class ApiService {
           'password': senha,
           'sistemaId': sistemaId.isNotEmpty ? sistemaId : _sistemaId,
         }),
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => throw Exception('Timeout na requisição de registro'),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final decoded = _tryDecodeJson(response.body);
@@ -134,35 +176,15 @@ class ApiService {
       }
 
       final errorBody = _tryDecodeJson(response.body);
-      final rawBody = response.body.trim();
-      
-      String message;
-      if (response.statusCode == 409) {
-        message = 'Este usuário (email/login) já existe. Tente com outros dados.';
-      } else if (response.statusCode == 400) {
-        message = errorBody is Map<String, dynamic>
-          ? (errorBody['message']?.toString() ?? 'Dados inválidos. Verifique os campos.')
-          : 'Dados inválidos. Verifique os campos.';
-      } else {
-        message = errorBody is Map<String, dynamic>
-          ? (errorBody['message']?.toString() ?? 'Erro ao registrar usuario')
-          : (rawBody.isNotEmpty ? rawBody : 'Erro ao registrar usuario');
-      }
-
       return {
         'success': false,
-        'message': message,
+        'message': errorBody is Map<String, dynamic> ? (errorBody['message']?.toString() ?? 'Erro no registro') : 'Erro no registro',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro na requisição: ${e.toString()}',
-      };
+      return {'success': false, 'message': e.toString()};
     }
   }
 
-  /// Faz login de um usuário
-  /// Retorna um Map com os dados do usuário e o token
   static Future<Map<String, dynamic>?> login({
     required String username,
     required String senha,
@@ -171,22 +193,19 @@ class ApiService {
     try {
       final response = await http.post(
         await _authEndpoint('/auth/login'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': username,
           'password': senha,
           'sistemaId': sistemaId.isNotEmpty ? sistemaId : _sistemaId,
         }),
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => throw Exception('Timeout na requisição de login'),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final decoded = _tryDecodeJson(response.body);
-        _token = _extractToken(decoded) ?? _token;
+        _token = _extractToken(decoded);
+
+        debugPrint('🔑 [API SERVICE] Token extraído e pronto: $_token');
 
         return {
           'success': true,
@@ -195,55 +214,44 @@ class ApiService {
         };
       }
 
-        final errorBody = _tryDecodeJson(response.body);
-        final rawBody = response.body.trim();
-        final message = errorBody is Map<String, dynamic>
-          ? (errorBody['message']?.toString() ?? 'Credenciais invalidas')
-          : (rawBody.isNotEmpty ? rawBody : 'Credenciais invalidas');
-
+      final errorBody = _tryDecodeJson(response.body);
       return {
         'success': false,
-        'message': message,
+        'message': errorBody is Map<String, dynamic> ? (errorBody['message']?.toString() ?? 'Credenciais inválidas') : 'Credenciais inválidas',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro na requisição: ${e.toString()}',
-      };
+      return {'success': false, 'message': e.toString()};
     }
   }
 
-  /// Envia um prompt para a IA
-  /// Requer token de autenticação
-  /// Agora aceita histórico e título para contexto adicional
   static Future<Map<String, dynamic>?> enviarPromptIa({
     required String prompt,
     List<Map<String, dynamic>>? history,
     String? titulo,
   }) async {
-    if (_token == null) {
+    if (_token == null || _token!.isEmpty) {
+      debugPrint('❌ [IA] Tentativa de envio sem token configurado na memória do ApiService.');
       return {
         'success': false,
-        'message': 'Token não disponível. Faça login primeiro.',
+        'message': 'Token não disponível. Faça login novamente.',
       };
     }
 
     try {
+      debugPrint('📡 [IA] Enviando prompt. Token utilizado (Bearer): ${_token!.substring(0, 15)}...');
+      
       final response = await http.post(
         await _iaEndpoint('/ai/chat'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_token',
+          'Authorization': 'Bearer $_token', // Envio limpo e higienizado
         },
         body: jsonEncode({
           'prompt': prompt,
           if (history != null) 'history': history,
           if (titulo != null) 'titulo': titulo,
         }),
-      ).timeout(
-        const Duration(seconds: 120),
-        onTimeout: () => throw Exception('Timeout na requisição de chat (120s)'),
-      );
+      ).timeout(const Duration(seconds: 120));
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -252,16 +260,17 @@ class ApiService {
           'data': json,
         };
       } else {
+        debugPrint('❌ [IA] Erro do servidor HTTP ${response.statusCode}: ${response.body}');
         return {
           'success': false,
-          'message': 'Erro ao processar a requisição',
+          'message': 'Erro ao processar a requisição na IA',
           'statusCode': response.statusCode,
         };
       }
     } catch (e) {
       return {
         'success': false,
-        'message': 'Erro na requisição: ${e.toString()}',
+        'message': 'Erro na requisição da IA: ${e.toString()}',
       };
     }
   }

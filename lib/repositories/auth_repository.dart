@@ -31,10 +31,10 @@ class AuthRepository {
     }
 
     debugPrint('✅ [REGISTER] Registro remoto bem-sucedido!');
-    debugPrint('   📍 Endpoint: POST /api/register');
+    debugPrint('    📍 Endpoint: POST /api/register');
     final dataResponse = resultadoApi['data'];
     if (dataResponse is Map) {
-      debugPrint('   📦 Response API: ${dataResponse.toString()}');
+      debugPrint('    📦 Response API: ${dataResponse.toString()}');
     }
 
     final resultadoLogin = await ApiService.login(
@@ -53,12 +53,12 @@ class AuthRepository {
     }
 
     debugPrint('✅ [REGISTER] Confirmação de login bem-sucedida!');
-    debugPrint('   📍 Endpoint: POST /api/auth/login');
+    debugPrint('    📍 Endpoint: POST /api/auth/login');
     final loginResponse = resultadoLogin['data'];
     if (loginResponse is Map) {
-      debugPrint('   📦 Response API: ${loginResponse.toString()}');
+      debugPrint('    📦 Response API: ${loginResponse.toString()}');
     }
-    debugPrint('   🔑 Token obtido: ${resultadoLogin['token']?.toString().substring(0, 20)}...');
+    debugPrint('    🔑 Token obtido: ${resultadoLogin['token']?.toString().substring(0, 20)}...');
 
     final token = resultadoLogin['token']?.toString();
     debugPrint('💾 [REGISTER] Salvando usuário localmente...');
@@ -108,20 +108,20 @@ class AuthRepository {
         );
       }
     } else {
-      debugPrint('✅ [REGISTER] Usuário salvo localmente com sucesso!');
-      debugPrint('   📊 Dados salvos no banco (sem senha):');
-      debugPrint('      - ID: ${usuario['id_usuario']}');
-      debugPrint('      - Nome: ${usuario['nome']}');
-      debugPrint('      - Email: ${usuario['email']}');
-      debugPrint('      - Login: ${usuario['login']}');
-      debugPrint('      - Token: ${usuario['token']?.toString().substring(0, 20)}...');
+      debugPrint('✅ [REGISTER] Usuário saved localmente com sucesso!');
+      debugPrint('    📊 Dados salvos no banco (sem senha):');
+      debugPrint('       - ID: ${usuario['id_usuario']}');
+      debugPrint('       - Nome: ${usuario['nome']}');
+      debugPrint('       - Email: ${usuario['email']}');
+      debugPrint('       - Login: ${usuario['login']}');
+      debugPrint('       - Token: ${usuario['token']?.toString().substring(0, 20)}...');
       
       if (token != null) ApiService.setToken(token);
     }
 
     debugPrint('🎉 [REGISTER] Registro finalizado com sucesso!');
-    debugPrint('   ✓ Usuário cadastrado com sucesso');
-    debugPrint('   ✓ Dados do banco: ID=${usuario['id_usuario']}, Email=${usuario['email']}, Login=${usuario['login']}');
+    debugPrint('    ✓ Usuário cadastrado com sucesso');
+    debugPrint('    ✓ Dados do banco: ID=${usuario['id_usuario']}, Email=${usuario['email']}, Login=${usuario['login']}');
 
     return {
       'success': true,
@@ -136,7 +136,7 @@ class AuthRepository {
   }) async {
     debugPrint('🔐 [AUTH] Iniciando login para: $username');
     Map<String, dynamic>? usuario;
-    String? token; // <--- DECLARADO AQUI NO ESCOPO CORRETO DO MÉTODO
+    String? token;
 
     try {
       debugPrint('💾 [AUTH] Validando credenciais localmente por email: $username');
@@ -149,11 +149,11 @@ class AuthRepository {
 
       if (usuario != null) {
         debugPrint('✅ [AUTH] Usuário local encontrado!');
-        debugPrint('   📊 Dados do banco (sem senha):');
-        debugPrint('      - ID: ${usuario['id_usuario']}');
-        debugPrint('      - Nome: ${usuario['nome']}');
-        debugPrint('      - Email: ${usuario['email']}');
-        debugPrint('      - Login: ${usuario['login']}');
+        debugPrint('    📊 Dados do banco (sem senha):');
+        debugPrint('       - ID: ${usuario['id_usuario']}');
+        debugPrint('       - Nome: ${usuario['nome']}');
+        debugPrint('       - Email: ${usuario['email']}');
+        debugPrint('       - Login: ${usuario['login']}');
 
         final idUsuario = usuario['id_usuario'] as int?;
         final tokenLocal = usuario['token']?.toString();
@@ -180,7 +180,7 @@ class AuthRepository {
 
       // Se chegamos aqui, o login via cache local não foi possível.
       debugPrint('📡 [AUTH] Validando credenciais contra API...');
-      debugPrint('   📍 Endpoint: POST /api/auth/login');
+      debugPrint('    📍 Endpoint: POST /api/auth/login');
 
       final resultadoApi = await ApiService.login(
         username: username,
@@ -198,51 +198,94 @@ class AuthRepository {
       }
 
       debugPrint('✅ [AUTH] API retornou sucesso!');
+      
+      // =======================================================================
+      // BLOCO DE INSPEÇÃO DE RETORNO DO SERVIDOR (NÃO ALTERA A LÓGICA)
+      // =======================================================================
+      debugPrint('===================================================');
+      debugPrint('🔍 [INSPEÇÃO SCRIBA] Estrutura completa da resposta da API:');
+      debugPrint('$resultadoApi');
+      if (resultadoApi['data'] != null) {
+        debugPrint('📦 Conteúdo de "data": ${resultadoApi['data']}');
+      } else {
+        debugPrint('⚠️ O campo "data" veio nulo ou não existe nessa API.');
+      }
+      debugPrint('===================================================');
+
       final apiResponse = resultadoApi['data'];
       if (apiResponse is Map) {
-        debugPrint('   📦 Response API: ${apiResponse.toString()}');
+        debugPrint('    📦 Response API: ${apiResponse.toString()}');
       }
-      debugPrint('   🔑 Token obtido: ${resultadoApi['token']?.toString().substring(0, 20)}...');
+      debugPrint('    🔑 Token obtido: ${resultadoApi['token']?.toString().substring(0, 20)}...');
 
-      // A API confirmou o login — a partir daqui o usuário está autenticado.
-      token = resultadoApi['token']?.toString(); // <--- REMOVIDO O 'FINAL'
+      token = resultadoApi['token']?.toString();
 
       if (usuario == null && resultadoApi['data'] is Map) {
         final apiData = resultadoApi['data'] as Map<String, dynamic>;
+        
+        // Mapeia de forma resiliente as variações de chaves retornadas pelo Keycloak/Servidor central
+        final nomeReal = (apiData['name'] ?? apiData['nome'] ?? apiData['firstName'] ?? 'Usuario').toString().trim();
+        final sobrenomeReal = (apiData['surname'] ?? apiData['sobrenome'] ?? apiData['lastName'] ?? '').toString().trim();
+        
+        // Evita gravar o apelido/login dentro do campo de e-mail local do SQLite
+        final emailReal = (apiData['email'] ?? apiData['email_user'] ?? (username.contains('@') ? username : '')).toString().trim().toLowerCase();
+        final loginReal = (apiData['login'] ?? apiData['username'] ?? (!username.contains('@') ? username : '')).toString().trim().toLowerCase();
+
         usuario = await DatabaseHelper.instance.cadastrarUsuario(
-          nome: apiData['name']?.toString() ?? 'Usuario',
-          sobrenome: apiData['surname']?.toString(),
-          login: username,
-          email: username,
+          nome: nomeReal,
+          sobrenome: sobrenomeReal,
+          login: loginReal.isNotEmpty ? loginReal : username,
+          email: emailReal.isNotEmpty ? emailReal : username,
           senha: senha,
           token: token,
           sistemaId: ApiService.sistemaId,
         );
-        debugPrint('✅ [AUTH] Usuário local criado com sucesso.');
-        debugPrint('   📊 Dados salvos:');
-        debugPrint('      - ID: ${usuario?['id_usuario']}');
-        debugPrint('      - Nome: ${usuario?['nome']}');
-        debugPrint('      - Email: ${usuario?['email']}');
+
+        if (usuario == null) {
+          debugPrint('⚠️ [AUTH] Conflito ou falha de UNIQUE detectada. Buscando registro correto no SQLite...');
+          if (emailReal.isNotEmpty) {
+            usuario = await DatabaseHelper.instance.obterUsuarioPorEmail(emailReal);
+          }
+          if (usuario == null && loginReal.isNotEmpty) {
+            usuario = await DatabaseHelper.instance.obterUsuarioPorEmail(loginReal);
+          }
+          // Fallback estrito pelo termo digitado na tela
+          if (usuario == null) {
+            usuario = await DatabaseHelper.instance.obterUsuarioPorEmail(username);
+          }
+        }
+
+        debugPrint('✅ [AUTH] Usuário local processado com sucesso.');
+        debugPrint('    📊 Dados salvos/recuperados:');
+        debugPrint('       - ID: ${usuario?['id_usuario']}');
+        debugPrint('       - Nome: ${usuario?['nome']}');
+        debugPrint('       - Email: ${usuario?['email']}');
       }
 
       if (usuario != null && token != null) {
-        debugPrint('💾 [AUTH] Atualizando token local para usuário (id: ${usuario['id_usuario']})');
+        final idUsuarioValido = usuario['id_usuario'] as int;
+        debugPrint('💾 [AUTH] Atualizando token local para usuário (id: $idUsuarioValido)');
         await DatabaseHelper.instance.salvarTokenUsuario(
-          idUsuario: usuario['id_usuario'] as int,
+          idUsuario: idUsuarioValido,
           token: token,
           sistemaId: ApiService.sistemaId,
         );
+        
+        final usuarioAtualizado = Map<String, dynamic>.from(usuario);
+        usuarioAtualizado['token'] = token;
+        usuarioAtualizado['id_usuario'] = idUsuarioValido;
+        usuario = usuarioAtualizado;
+        
         debugPrint('✅ [AUTH] Token local salvo.');
       }
     } catch (e) {
       debugPrint('⚠️ [AUTH] Erro ao salvar localmente: ${e.toString()}');
-      // Não interromper o fluxo de login se a persistência local falhar.
     }
 
-    ApiService.setToken(token); // <--- AGORA ESTA VARIÁVEL É RECONHECIDA AQUI!
+    ApiService.setToken(token);
     debugPrint('🎉 [AUTH] Login finalizado com sucesso!');
-    debugPrint('   ✓ Autenticação pela API confirmada');
-    debugPrint('   ✓ Usuário (ID=${usuario?['id_usuario']}, Email=${usuario?['email']}) carregado localmente');
+    debugPrint('    ✓ Autenticação pela API confirmada');
+    debugPrint('    ✓ Usuário (ID=${usuario?['id_usuario']}, Email=${usuario?['email']}) carregado localmente');
 
     return {
       'success': true,

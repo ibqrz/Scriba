@@ -5,7 +5,6 @@
 
 <p>O Scriba é um aplicativo de gerenciamento de notas pessoais desenvolvido em Flutter. Ele permite que usuários organizem seus pensamentos de forma rápida, segura e persistente, contando com uma interface intuitiva e suporte a múltiplos perfis de usuário localmente. O ecossistema inclui uma arquitetura cliente-servidor integrada por meio de microsserviços e um proxy reverso dedicado para autenticação distribuída e inteligência artificial.</p>
 
-<blockquote><strong>Status:</strong> Em desenvolvimento</blockquote>
 
 <h2 id="menu">🔍 Menu</h2>
 <ul>
@@ -30,7 +29,7 @@
     <li><strong>Persistência Multiplataforma:</strong> Integração híbrida total com banco de dados estruturado SQLite para persistência física local.</li>
     <li><strong>Busca Inteligente:</strong> Mecanismo de filtro em tempo real por título de nota integrado diretamente na barra de pesquisa da tela inicial.</li>
     <li><strong>Interface Responsiva:</strong> Design responsivo adaptável para modo retrato (<em>portrait</em>) e paisagem (<em>landscape</em>), aplicando heurísticas de usabilidade e acessibilidade com prevenção robusta contra estouros de layout (<em>overflow</em>).</li>
-    <li><strong>Barra de Ferramentas e Dev Runner Inteligente:</strong> Script utilitário em Dart para orquestração automática e liberação forçada de portas físicas de desenvolvimento do proxy e da aplicação cliente.</li>
+    <li><strong>Barra de Ferramentas e Dev Runner Inteligente:</strong> Script utilitário em Dart para orquestração automática.</li>
 </ul>
 
 <hr>
@@ -77,21 +76,9 @@
 <h2 id="arquitetura-e-ambiente">Arquitetura de Rede e Ambiente</h2>
 <p>O ecossistema do Scriba adota injeção estática em tempo de compilação utilizando a flag do ecossistema Dart <code>--dart-define</code>. A comunicação externa é completamente parametrizada através della variável de ambiente <code>SCRIBA_PROXY_BASE_URL</code>.</p>
 
-[Scriba App Client] ──(HTTP via Dart Define URL)──> [API Proxy Server (Port:8080)]
-│
-┌──────────────────────┴──────────────────────┐
-▼                                             ▼
-[/proxy/auth] ──> API Auth Cloud              [/proxy/ia] ──> API IA Cloud
-
-
 <p>O servidor proxy (<code>api_proxy_server.dart</code>) opera na porta de rede <code>8080</code> utilizando ligação de escuta global (<code>InternetAddress.anyIPv4</code> / <code>0.0.0.0</code>), interceptando e higienizando cabeçalhos impeditivos como <code>Host</code>, <code>Origin</code> e <code>Content-Length</code>, permitindo que múltiplos clientes enviem requisições com injeção automática de políticas flexíveis de CORS.</p>
 
-hr
-
 <h2 id="rodar">🚀 Como Rodar</h2>
-
-<h3>Pré-requisitos</h3>
-<p>Certifique-se de que o dispositivo móvel físico esteja conectado via cabo USB com a <strong>Depuração USB</strong> habilitada nas opções do desenvolvedor do seu sistema Android.</p>
 
 <h3>Instruções de Execução</h3>
 <ol>
@@ -112,11 +99,11 @@ cd scriba</code></pre>
         <p><strong>Inicie o ambiente de desenvolvimento usando o Orquestrador Automático:</strong></p>
         <p><strong>Execução Padrão (Ambiente Web / Google Chrome):</strong></p>
         <p>O orquestrador assumirá o Chrome automaticamente, liberará a porta de rede <code>8080</code> de processos travados, inicializará o proxy local em background e executará o cliente na porta de desenvolvimento <code>5000</code>:</p>
-<pre><code>flutter pub run tool\dev_runner.dart</code></pre>
+<pre><code>flutter pub run tool\\dev_runner.dart</code></pre>
         <p><strong>Execução Móvel Automatizada (Celular Android / Emulador):</strong></p>
         <p>O script executará um rastreamento completo de caracteres de codificação no terminal do Windows, isolará o identificador físico do seu celular conectado e aplicará automaticamente o encapsulamento de porta por meio de <strong>ADB Port Forwarding</strong> via barramento USB. Isso elimina dependências de IPs dinâmicos:
 		</p>
-<pre><code>flutter pub run tool\dev_runner.dart mobile</code></pre>
+<pre><code>flutter pub run tool\\dev_runner.dart mobile</code></pre>
     </li>
 </ol>
 
